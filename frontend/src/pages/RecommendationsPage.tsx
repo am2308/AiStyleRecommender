@@ -9,7 +9,7 @@ import { useWardrobe } from '../contexts/WardrobeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import SubscriptionModal from '../components/SubscriptionModal';
-import Avatar3D from '../components/Avatar3D';
+import ModelVisualization from '../components/ModelVisualization';
 import StyleInsights from '../components/StyleInsights';
 import SocialSharing from '../components/SocialSharing';
 import OutfitCalendar from '../components/OutfitCalendar';
