@@ -18,9 +18,11 @@ import {
   Shield
 } from 'lucide-react';
 import FashionBackground from '../components/FashionBackground';
+import DemoVideo from '../components/DemoVideo';
 
 const LandingPage: React.FC = () => {
   const [activeFeature, setActiveFeature] = useState(0);
+  const [showDemoVideo, setShowDemoVideo] = useState(false);
 
   const features = [
     {
@@ -87,14 +89,14 @@ const LandingPage: React.FC = () => {
       <FashionBackground />
       
       {/* Navigation */}
-      <nav className="relative z-20 bg-white/95 backdrop-blur-md shadow-lg border-b border-white/20">
+      <nav className="absolute top-0 left-0 right-0 z-30 bg-white/10 backdrop-blur-md border-b border-white/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
               <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-full p-2">
                 <Shirt className="h-6 w-6 text-white" />
               </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+              <span className="text-xl font-bold text-white">
                 StyleAI
               </span>
             </div>
@@ -102,13 +104,13 @@ const LandingPage: React.FC = () => {
             <div className="flex items-center space-x-4">
               <Link
                 to="/login"
-                className="text-gray-600 hover:text-purple-600 transition-colors font-medium"
+                className="text-white/90 hover:text-white transition-colors font-medium"
               >
                 Login
               </Link>
               <Link
                 to="/signup"
-                className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg"
+                className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg"
               >
                 Get Started Free
               </Link>
@@ -163,7 +165,10 @@ const LandingPage: React.FC = () => {
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
               
-              <button className="group flex items-center space-x-3 bg-white/90 text-gray-800 px-8 py-4 rounded-xl hover:bg-white transition-all shadow-lg text-lg font-semibold border border-gray-200">
+              <button 
+                className="group flex items-center space-x-3 bg-white/90 text-gray-800 px-8 py-4 rounded-xl hover:bg-white transition-all shadow-lg text-lg font-semibold border border-gray-200"
+                onClick={() => setShowDemoVideo(true)}
+              >
                 <Play className="w-6 h-6" />
                 <span>Watch Demo</span>
               </button>
@@ -526,6 +531,9 @@ const LandingPage: React.FC = () => {
           </div>
         </div>
       </footer>
+
+      {/* Demo Video Modal */}
+      <DemoVideo isOpen={showDemoVideo} onClose={() => setShowDemoVideo(false)} />
     </div>
   );
 };
