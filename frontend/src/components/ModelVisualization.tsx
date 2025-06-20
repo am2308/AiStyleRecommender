@@ -56,8 +56,7 @@ const ModelVisualization: React.FC<ModelVisualizationProps> = ({
   };
 
   const generateStyleAnalysis = () => {
-    // const analysis = [];
-    const analysis: string[] = [];
+    const analysis = [];
     
     if (userProfile.skinTone) {
       analysis.push(`The color palette beautifully complements your ${userProfile.skinTone} complexion`);

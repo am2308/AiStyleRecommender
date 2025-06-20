@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, ShoppingBag, ExternalLink, Star, TrendingUp, Zap, ArrowRight, Crown, Lock, User, Calendar, BarChart3, Share2 } from 'lucide-react';
+import { 
+  Sparkles, ShoppingBag, ExternalLink, Star, TrendingUp, Zap, ArrowRight, Crown, 
+  Lock, User, Calendar, BarChart3, Share2 
+} from 'lucide-react';
 import { recommendationService, OutfitRecommendation, ShoppingListItem } from '../services/recommendationService';
 import { useWardrobe } from '../contexts/WardrobeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import SubscriptionModal from '../components/SubscriptionModal';
-import RealisticAvatar from '../components/Avatar3D/RealisticAvatar';
+import Avatar3D from '../components/Avatar3D';
 import StyleInsights from '../components/StyleInsights';
 import SocialSharing from '../components/SocialSharing';
 import OutfitCalendar from '../components/OutfitCalendar';
@@ -359,7 +362,7 @@ const RecommendationsPage: React.FC = () => {
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center space-x-3">
                     <User className="w-6 h-6 text-purple-600" />
-                    <h3 className="text-lg font-semibold text-gray-900">Realistic 3D Model Preview</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">3D Virtual Model Preview</h3>
                   </div>
                   
                   {/* Enhanced Controls */}
@@ -388,22 +391,15 @@ const RecommendationsPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Realistic Avatar Component */}
-                <RealisticAvatar
+                {/* Model Visualization */}
+                <ModelVisualization
                   userProfile={{
                     skinTone: user?.skinTone,
                     bodyType: user?.bodyType,
-                    preferredStyle: user?.preferredStyle,
-                    gender: 'unisex' // You can make this dynamic if you have gender in user profile
+                    preferredStyle: user?.preferredStyle
                   }}
                   outfitItems={getOutfitItems(recommendations[selectedOutfitForModel])}
-                  outfitData={{
-                    occasion: recommendations[selectedOutfitForModel].occasion,
-                    confidence: recommendations[selectedOutfitForModel].confidence,
-                    description: recommendations[selectedOutfitForModel].description,
-                    styleNotes: recommendations[selectedOutfitForModel].styleNotes,
-                    missingItems: recommendations[selectedOutfitForModel].missingItems
-                  }}
+                  occasion={recommendations[selectedOutfitForModel].occasion}
                   className="h-full"
                 />
               </div>

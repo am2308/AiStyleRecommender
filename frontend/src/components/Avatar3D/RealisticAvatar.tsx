@@ -4,6 +4,7 @@ import { User, Palette, Sparkles } from 'lucide-react';
 import BabylonAvatar from './BabylonAvatar';
 import AvatarControls from './AvatarControls';
 import OutfitDetails from './OutfitDetails';
+import * as THREE from 'three';
 
 interface RealisticAvatarProps {
   userProfile: {
