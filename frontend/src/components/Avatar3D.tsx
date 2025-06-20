@@ -119,6 +119,39 @@ const Avatar3DModel: React.FC<{
   pose: string;
 }> = ({ skinColors, bodyMeasurements, outfitItems, pose }) => {
   const groupRef = useRef<THREE.Group>(null);
+  const textureRefs = useRef<{[key: string]: THREE.Texture | null}>({});
+  const [texturesLoaded, setTexturesLoaded] = useState<{[key: string]: boolean}>({});
+
+  // Load textures from wardrobe item images
+  useEffect(() => {
+    const textureLoader = new THREE.TextureLoader();
+    
+    outfitItems.forEach(item => {
+      if (item.imageUrl && !textureRefs.current[item.id]) {
+        textureLoader.load(
+          item.imageUrl,
+          (texture) => {
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            textureRefs.current[item.id] = texture;
+            setTexturesLoaded(prev => ({...prev, [item.id]: true}));
+          },
+          undefined,
+          (error) => {
+            console.error('Error loading texture:', error);
+            setTexturesLoaded(prev => ({...prev, [item.id]: false}));
+          }
+        );
+      }
+    });
+    
+    return () => {
+      // Dispose textures on cleanup
+      Object.values(textureRefs.current).forEach(texture => {
+        if (texture) texture.dispose();
+      });
+    };
+  }, [outfitItems]);
 
   useFrame((state) => {
     if (groupRef.current) {
@@ -147,6 +180,29 @@ const Avatar3DModel: React.FC<{
   };
 
   const createClothingMaterial = (item: any) => {
+    // If texture is loaded for this item, use it
+    if (textureRefs.current[item.id] && texturesLoaded[item.id]) {
+      const material = new THREE.MeshStandardMaterial({
+        map: textureRefs.current[item.id],
+        roughness: 0.7,
+        metalness: 0.0,
+      });
+      
+      // Adjust texture based on clothing type
+      if (item.category === 'Tops' || item.category === 'Dresses') {
+        // For tops and dresses, we want to show the front of the garment
+        textureRefs.current[item.id]!.repeat.set(1, 1);
+        textureRefs.current[item.id]!.offset.set(0, 0);
+      } else if (item.category === 'Bottoms') {
+        // For bottoms, we might need different scaling
+        textureRefs.current[item.id]!.repeat.set(1, 1);
+        textureRefs.current[item.id]!.offset.set(0, 0);
+      }
+      
+      return material;
+    }
+    
+    // Fallback to color-based material if texture isn't loaded
     const colorMap: { [key: string]: string } = {
       'Black': '#1a1a1a',
       'White': '#f8f8f8',

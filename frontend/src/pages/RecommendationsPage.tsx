@@ -6,7 +6,7 @@ import { useWardrobe } from '../contexts/WardrobeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import SubscriptionModal from '../components/SubscriptionModal';
-import RealisticAvatar from '../components/Avatar3D';
+import RealisticAvatar from '../components/Avatar3D/RealisticAvatar';
 import StyleInsights from '../components/StyleInsights';
 import SocialSharing from '../components/SocialSharing';
 import OutfitCalendar from '../components/OutfitCalendar';

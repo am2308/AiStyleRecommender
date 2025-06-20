@@ -20,6 +20,7 @@ interface BabylonAvatarProps {
   pose?: 'standing' | 'walking' | 'casual' | 'formal';
   lighting?: 'studio' | 'natural' | 'dramatic';
   onLoadingChange?: (loading: boolean) => void;
+  useRealClothingTextures?: boolean;
 }
 
 const BabylonAvatar: React.FC<BabylonAvatarProps> = ({
@@ -27,12 +28,14 @@ const BabylonAvatar: React.FC<BabylonAvatarProps> = ({
   outfitItems,
   pose = 'standing',
   lighting = 'studio',
-  onLoadingChange
+  onLoadingChange,
+  useRealClothingTextures = true
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<Engine | null>(null);
   const sceneRef = useRef<Scene | null>(null);
   const avatarRef = useRef<AbstractMesh | null>(null);
+  const textureRefs = useRef<{[key: string]: Texture}>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -152,52 +155,96 @@ const BabylonAvatar: React.FC<BabylonAvatarProps> = ({
 
   // Create realistic fabric materials for clothing
   const createFabricMaterial = (scene: Scene, item: any) => {
-    const material = new PBRMaterial(`fabric_${item.id}`, scene);
-    
-    const colorMap: { [key: string]: Color3 } = {
-      'Black': new Color3(0.05, 0.05, 0.05),
-      'White': new Color3(0.95, 0.95, 0.95),
-      'Blue': new Color3(0.15, 0.35, 0.75),
-      'Red': new Color3(0.75, 0.15, 0.15),
-      'Green': new Color3(0.15, 0.65, 0.25),
-      'Gray': new Color3(0.45, 0.45, 0.45),
-      'Brown': new Color3(0.45, 0.25, 0.15),
-      'Purple': new Color3(0.55, 0.25, 0.75),
-      'Pink': new Color3(0.85, 0.45, 0.65),
-      'Yellow': new Color3(0.85, 0.75, 0.15),
-      'Orange': new Color3(0.85, 0.45, 0.15),
-      'Multi': new Color3(0.45, 0.45, 0.45)
-    };
-
-    material.baseColor = colorMap[item.color] || colorMap['Gray'];
-    
-    // Different fabric properties based on clothing type
-    if (item.category === 'Dresses' || item.name.toLowerCase().includes('silk')) {
-      // Silk-like material
-      material.roughness = 0.1;
-      material.metallic = 0.0;
-      material.clearCoat.isEnabled = true;
-      material.clearCoat.intensity = 0.3;
-    } else if (item.name.toLowerCase().includes('denim') || item.name.toLowerCase().includes('jean')) {
-      // Denim material
-      material.roughness = 0.9;
-      material.metallic = 0.0;
-      material.bumpTexture = new Texture('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZGVuaW0iIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPjxyZWN0IHdpZHRoPSI0IiBoZWlnaHQ9IjQiIGZpbGw9IiMwMDAiIGZpbGwtb3BhY2l0eT0iMC4wNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9InVybCgjZGVuaW0pIi8+PC9zdmc+', scene);
-      material.bumpTexture.level = 0.3;
-    } else if (item.name.toLowerCase().includes('leather')) {
-      // Leather material
-      material.roughness = 0.3;
-      material.metallic = 0.1;
-      material.clearCoat.isEnabled = true;
-      material.clearCoat.intensity = 0.5;
-      material.clearCoat.roughness = 0.2;
+    // If using real clothing textures and the item has an imageUrl
+    if (useRealClothingTextures && item.imageUrl) {
+      // Check if we already have this texture loaded
+      if (!textureRefs.current[item.id]) {
+        // Create a new texture
+        const texture = new Texture(item.imageUrl, scene, false, false);
+        texture.hasAlpha = true;
+        texture.wrapU = Texture.WRAP_ADDRESSMODE;
+        texture.wrapV = Texture.WRAP_ADDRESSMODE;
+        
+        // Store the texture for reuse
+        textureRefs.current[item.id] = texture;
+      }
+      
+      // Create material with the texture
+      const material = new PBRMaterial(`fabric_${item.id}`, scene);
+      material.albedoTexture = textureRefs.current[item.id];
+      material.useAlphaFromAlbedoTexture = true;
+      
+      // Adjust material properties based on clothing type
+      if (item.category === 'Dresses' || item.name.toLowerCase().includes('silk')) {
+        material.roughness = 0.1;
+        material.metallic = 0.0;
+        material.clearCoat.isEnabled = true;
+        material.clearCoat.intensity = 0.3;
+      } else if (item.name.toLowerCase().includes('denim') || item.name.toLowerCase().includes('jean')) {
+        material.roughness = 0.9;
+        material.metallic = 0.0;
+        material.bumpTexture = new Texture('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZGVuaW0iIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPjxyZWN0IHdpZHRoPSI0IiBoZWlnaHQ9IjQiIGZpbGw9IiMwMDAiIGZpbGwtb3BhY2l0eT0iMC4wNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9InVybCgjZGVuaW0pIi8+PC9zdmc+', scene);
+        material.bumpTexture.level = 0.3;
+      } else if (item.name.toLowerCase().includes('leather')) {
+        material.roughness = 0.3;
+        material.metallic = 0.1;
+        material.clearCoat.isEnabled = true;
+        material.clearCoat.intensity = 0.5;
+        material.clearCoat.roughness = 0.2;
+      } else {
+        material.roughness = 0.7;
+        material.metallic = 0.0;
+      }
+      
+      return material;
     } else {
-      // Default fabric material (cotton-like)
-      material.roughness = 0.7;
-      material.metallic = 0.0;
-    }
+      // Fallback to color-based material
+      const colorMap: { [key: string]: Color3 } = {
+        'Black': new Color3(0.05, 0.05, 0.05),
+        'White': new Color3(0.95, 0.95, 0.95),
+        'Blue': new Color3(0.15, 0.35, 0.75),
+        'Red': new Color3(0.75, 0.15, 0.15),
+        'Green': new Color3(0.15, 0.65, 0.25),
+        'Gray': new Color3(0.45, 0.45, 0.45),
+        'Brown': new Color3(0.45, 0.25, 0.15),
+        'Purple': new Color3(0.55, 0.25, 0.75),
+        'Pink': new Color3(0.85, 0.45, 0.65),
+        'Yellow': new Color3(0.85, 0.75, 0.15),
+        'Orange': new Color3(0.85, 0.45, 0.15),
+        'Multi': new Color3(0.45, 0.45, 0.45)
+      };
 
-    return material;
+      const material = new PBRMaterial(`fabric_${item.id}`, scene);
+      material.albedoColor = colorMap[item.color] || colorMap['Gray'];
+      
+      // Different fabric properties based on clothing type
+      if (item.category === 'Dresses' || item.name.toLowerCase().includes('silk')) {
+        // Silk-like material
+        material.roughness = 0.1;
+        material.metallic = 0.0;
+        material.clearCoat.isEnabled = true;
+        material.clearCoat.intensity = 0.3;
+      } else if (item.name.toLowerCase().includes('denim') || item.name.toLowerCase().includes('jean')) {
+        // Denim material
+        material.roughness = 0.9;
+        material.metallic = 0.0;
+        material.bumpTexture = new Texture('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZGVuaW0iIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPjxyZWN0IHdpZHRoPSI0IiBoZWlnaHQ9IjQiIGZpbGw9IiMwMDAiIGZpbGwtb3BhY2l0eT0iMC4wNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9InVybCgjZGVuaW0pIi8+PC9zdmc+', scene);
+        material.bumpTexture.level = 0.3;
+      } else if (item.name.toLowerCase().includes('leather')) {
+        // Leather material
+        material.roughness = 0.3;
+        material.metallic = 0.1;
+        material.clearCoat.isEnabled = true;
+        material.clearCoat.intensity = 0.5;
+        material.clearCoat.roughness = 0.2;
+      } else {
+        // Default fabric material (cotton-like)
+        material.roughness = 0.7;
+        material.metallic = 0.0;
+      }
+      
+      return material;
+    }
   };
 
   // Create skin material with subsurface scattering effect
@@ -205,7 +252,7 @@ const BabylonAvatar: React.FC<BabylonAvatarProps> = ({
     const skinPBR = getSkinTonePBR(skinTone || 'Medium');
     
     const material = new PBRMaterial("skinMaterial", scene);
-    material.baseColor = skinPBR.baseColor;
+    material.albedoColor = skinPBR.baseColor;
     material.roughness = skinPBR.roughness;
     material.metallic = skinPBR.metallic;
     material.subSurface.isTranslucencyEnabled = true;
@@ -701,6 +748,12 @@ const BabylonAvatar: React.FC<BabylonAvatarProps> = ({
         if (envHelper) {
           envHelper.dispose();
         }
+        
+        // Dispose textures
+        Object.values(textureRefs.current).forEach(texture => {
+          texture.dispose();
+        });
+        
         scene.dispose();
         engine.dispose();
       };
@@ -710,7 +763,7 @@ const BabylonAvatar: React.FC<BabylonAvatarProps> = ({
       setIsLoading(false);
       if (onLoadingChange) onLoadingChange(false);
     }
-  }, [userProfile, outfitItems, pose, lighting]);
+  }, [userProfile, outfitItems, pose, lighting, useRealClothingTextures]);
 
   return (
     <div className="relative w-full h-full">

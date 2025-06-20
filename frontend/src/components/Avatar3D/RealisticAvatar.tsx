@@ -53,6 +53,41 @@ const RealisticAvatar: React.FC<RealisticAvatarProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [texturesLoaded, setTexturesLoaded] = useState(false);
+
+  // Preload textures for better performance
+  useEffect(() => {
+    const textureLoader = new THREE.TextureLoader();
+    const texturesToLoad = outfitItems.length;
+    let loadedCount = 0;
+    
+    outfitItems.forEach(item => {
+      if (item.imageUrl) {
+        textureLoader.load(
+          item.imageUrl,
+          () => {
+            loadedCount++;
+            if (loadedCount === texturesToLoad) {
+              setTexturesLoaded(true);
+            }
+          },
+          undefined,
+          (error) => {
+            console.error('Error loading texture:', error);
+            loadedCount++;
+            if (loadedCount === texturesToLoad) {
+              setTexturesLoaded(true);
+            }
+          }
+        );
+      } else {
+        loadedCount++;
+        if (loadedCount === texturesToLoad) {
+          setTexturesLoaded(true);
+        }
+      }
+    });
+  }, [outfitItems]);
 
   const handlePoseChange = () => {
     const poses: ('standing' | 'walking' | 'casual' | 'formal')[] = ['standing', 'walking', 'casual', 'formal'];
@@ -205,6 +240,7 @@ const RealisticAvatar: React.FC<RealisticAvatarProps> = ({
                 pose={modelPose}
                 lighting={lighting}
                 onLoadingChange={setIsLoading}
+                useRealClothingTextures={true}
               />
               
               {/* Controls Overlay */}
