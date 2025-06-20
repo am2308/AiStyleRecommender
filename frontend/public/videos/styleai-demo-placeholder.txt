@@ -1,0 +1,5 @@
+This is a placeholder file. Replace this with your actual demo video file (styleai-demo.mp4).
+
+The video should be approximately 90 seconds long and follow the script in the DemoVideoScript.md file.
+
+For production guidance, refer to the VideoProduction.md file in the components directory.

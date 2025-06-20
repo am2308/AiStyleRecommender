@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Play, Pause, Volume2, VolumeX } from 'lucide-react';
+import { X, Play, Pause, Volume2, VolumeX, ChevronRight } from 'lucide-react';
 
 interface DemoVideoProps {
   isOpen: boolean;
@@ -11,16 +11,19 @@ const DemoVideo: React.FC<DemoVideoProps> = ({ isOpen, onClose }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [activeSection, setActiveSection] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   
   // Video sections with timestamps (in seconds)
   const sections = [
-    { time: 0, title: "Introduction" },
-    { time: 15, title: "AI Style Recommendations" },
-    { time: 30, title: "3D Virtual Try-On" },
-    { time: 45, title: "Smart Wardrobe Management" },
-    { time: 60, title: "Marketplace Integration" },
-    { time: 75, title: "Subscription Benefits" }
+    { time: 0, title: "Introduction", description: "The problem StyleAI solves" },
+    { time: 15, title: "AI Recommendations", description: "Personalized outfit suggestions" },
+    { time: 30, title: "3D Virtual Try-On", description: "See outfits on your body type" },
+    { time: 45, title: "Smart Wardrobe", description: "Digital closet management" },
+    { time: 60, title: "Marketplace", description: "Complete your perfect looks" },
+    { time: 75, title: "Subscription", description: "Premium features and benefits" }
   ];
 
   // Handle play/pause
@@ -43,11 +46,23 @@ const DemoVideo: React.FC<DemoVideoProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  // Update progress bar
+  // Update progress bar and current time
   const updateProgress = () => {
     if (videoRef.current) {
-      const percentage = (videoRef.current.currentTime / videoRef.current.duration) * 100;
+      const currentTime = videoRef.current.currentTime;
+      const duration = videoRef.current.duration;
+      const percentage = (currentTime / duration) * 100;
+      
       setProgress(percentage);
+      setCurrentTime(currentTime);
+      
+      // Update active section based on current time
+      for (let i = sections.length - 1; i >= 0; i--) {
+        if (currentTime >= sections[i].time) {
+          setActiveSection(i);
+          break;
+        }
+      }
     }
   };
 
@@ -60,6 +75,13 @@ const DemoVideo: React.FC<DemoVideoProps> = ({ isOpen, onClose }) => {
         setIsPlaying(true);
       }
     }
+  };
+
+  // Format time (seconds to MM:SS)
+  const formatTime = (time: number) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
   // Handle keyboard shortcuts
@@ -76,7 +98,18 @@ const DemoVideo: React.FC<DemoVideoProps> = ({ isOpen, onClose }) => {
           e.preventDefault();
           break;
         case 'm':
+        case 'M':
           toggleMute();
+          break;
+        case 'ArrowRight':
+          if (videoRef.current) {
+            videoRef.current.currentTime += 10;
+          }
+          break;
+        case 'ArrowLeft':
+          if (videoRef.current) {
+            videoRef.current.currentTime -= 10;
+          }
           break;
       }
     };
@@ -90,7 +123,17 @@ const DemoVideo: React.FC<DemoVideoProps> = ({ isOpen, onClose }) => {
     if (isOpen && videoRef.current) {
       // Small delay to ensure modal animation completes
       const timer = setTimeout(() => {
-        videoRef.current?.play();
+        videoRef.current?.play().catch(err => {
+          console.log('Auto-play prevented:', err);
+          // Many browsers prevent autoplay with sound
+          if (videoRef.current) {
+            videoRef.current.muted = true;
+            setIsMuted(true);
+            videoRef.current.play().catch(err => {
+              console.log('Even muted autoplay failed:', err);
+            });
+          }
+        });
         setIsPlaying(true);
       }, 500);
       
@@ -105,6 +148,13 @@ const DemoVideo: React.FC<DemoVideoProps> = ({ isOpen, onClose }) => {
       setIsPlaying(false);
     }
   }, [isOpen]);
+
+  // Set duration when metadata is loaded
+  const handleMetadataLoaded = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration);
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -133,18 +183,24 @@ const DemoVideo: React.FC<DemoVideoProps> = ({ isOpen, onClose }) => {
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
                 onEnded={() => setIsPlaying(false)}
-                poster="https://images.pexels.com/photos/1926769/pexels-photo-1926769.jpeg?auto=compress&cs=tinysrgb&w=1280&h=720&fit=crop"
+                onLoadedMetadata={handleMetadataLoaded}
+                poster="/images/demo-poster.jpg"
+                playsInline
               >
-                {/* Replace with your actual video file */}
-                <source src="https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_2mb.mp4" type="video/mp4" />
+                <source src="/videos/styleai-demo.mp4" type="video/mp4" />
                 Your browser does not support the video tag.
               </video>
 
               {/* Video Controls Overlay */}
-              <div className="absolute inset-0 flex flex-col justify-between p-4 bg-gradient-to-t from-black/70 to-transparent opacity-0 hover:opacity-100 transition-opacity">
+              <div className="absolute inset-0 flex flex-col justify-between p-4 bg-gradient-to-t from-black/70 via-black/30 to-black/50 opacity-0 hover:opacity-100 transition-opacity">
                 {/* Top Bar */}
                 <div className="flex justify-between items-center">
-                  <h3 className="text-white text-xl font-semibold">StyleAI Demo</h3>
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-full p-1">
+                      <Play className="h-4 w-4 text-white" />
+                    </div>
+                    <h3 className="text-white text-xl font-semibold">StyleAI Demo</h3>
+                  </div>
                   <button
                     onClick={onClose}
                     className="text-white hover:text-red-500 transition-colors"
@@ -170,7 +226,7 @@ const DemoVideo: React.FC<DemoVideoProps> = ({ isOpen, onClose }) => {
                 {/* Bottom Controls */}
                 <div className="space-y-2">
                   {/* Progress Bar */}
-                  <div className="relative w-full h-1 bg-white/30 rounded-full cursor-pointer"
+                  <div className="relative w-full h-2 bg-white/30 rounded-full cursor-pointer"
                     onClick={(e) => {
                       if (videoRef.current) {
                         const rect = e.currentTarget.getBoundingClientRect();
@@ -183,6 +239,19 @@ const DemoVideo: React.FC<DemoVideoProps> = ({ isOpen, onClose }) => {
                       className="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-600 to-pink-600 rounded-full"
                       style={{ width: `${progress}%` }}
                     ></div>
+                    
+                    {/* Section Markers */}
+                    {sections.map((section, index) => (
+                      <div 
+                        key={index}
+                        className="absolute top-1/2 -translate-y-1/2 w-1 h-4 bg-white/50 rounded-full"
+                        style={{ 
+                          left: `${(section.time / (duration || 90)) * 100}%`,
+                          backgroundColor: index === activeSection ? 'white' : 'rgba(255,255,255,0.5)'
+                        }}
+                        title={section.title}
+                      />
+                    ))}
                   </div>
 
                   {/* Controls */}
@@ -209,13 +278,14 @@ const DemoVideo: React.FC<DemoVideoProps> = ({ isOpen, onClose }) => {
                         )}
                       </button>
                       <span className="text-white text-sm">
-                        {videoRef.current ? 
-                          `${Math.floor(videoRef.current.currentTime / 60)}:${Math.floor(videoRef.current.currentTime % 60).toString().padStart(2, '0')}` 
-                          : '0:00'}
+                        {formatTime(currentTime)} / {formatTime(duration || 0)}
                       </span>
                     </div>
-                    <div>
-                      <span className="text-white text-sm">HD</span>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-white text-sm bg-white/20 px-2 py-1 rounded">
+                        {sections[activeSection]?.title}
+                      </span>
+                      <span className="text-white/70 text-xs">HD</span>
                     </div>
                   </div>
                 </div>
@@ -225,19 +295,40 @@ const DemoVideo: React.FC<DemoVideoProps> = ({ isOpen, onClose }) => {
             {/* Video Chapters/Sections */}
             <div className="bg-gray-900 p-4">
               <h4 className="text-white font-medium mb-3">Video Sections</h4>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {sections.map((section, index) => (
                   <button
                     key={index}
                     onClick={() => jumpToSection(section.time)}
-                    className="text-left px-3 py-2 rounded-lg hover:bg-gray-800 transition-colors"
+                    className={`text-left px-3 py-2 rounded-lg transition-colors ${
+                      index === activeSection 
+                        ? 'bg-gradient-to-r from-purple-900/70 to-pink-900/70 border border-purple-500/30' 
+                        : 'hover:bg-gray-800'
+                    }`}
                   >
-                    <span className="text-gray-400 text-xs">
-                      {Math.floor(section.time / 60)}:{(section.time % 60).toString().padStart(2, '0')}
-                    </span>
-                    <p className="text-white text-sm">{section.title}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400 text-xs">
+                        {formatTime(section.time)}
+                      </span>
+                      {index === activeSection && (
+                        <div className="animate-pulse">
+                          <ChevronRight size={14} className="text-purple-400" />
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-white text-sm font-medium">{section.title}</p>
+                    <p className="text-gray-400 text-xs">{section.description}</p>
                   </button>
                 ))}
+              </div>
+              
+              <div className="mt-4 pt-3 border-t border-gray-800 text-center">
+                <p className="text-gray-400 text-sm">
+                  Keyboard shortcuts: <span className="text-white">Space</span> (play/pause), 
+                  <span className="text-white"> M</span> (mute), 
+                  <span className="text-white"> ←→</span> (seek), 
+                  <span className="text-white"> Esc</span> (close)
+                </p>
               </div>
             </div>
           </motion.div>
