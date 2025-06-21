@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Award, Calendar, Users, ArrowRight, Clock, Trophy } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 interface StyleChallengeCardProps {
   challenge: {
@@ -25,9 +25,17 @@ interface StyleChallengeCardProps {
 }
 
 const StyleChallengeCard: React.FC<StyleChallengeCardProps> = ({ challenge, onJoin }) => {
+  const navigate = useNavigate();
+  
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const handleViewChallenge = (e: React.MouseEvent) => {
+    e.preventDefault();
+    // Navigate to the challenge detail page
+    navigate(`/community?tab=challenges&challenge=${challenge.id}`);
   };
 
   return (
@@ -122,13 +130,13 @@ const StyleChallengeCard: React.FC<StyleChallengeCardProps> = ({ challenge, onJo
         {/* Actions */}
         <div className="flex space-x-3">
           {challenge.isJoined ? (
-            <Link 
-              to={`/community/challenges/${challenge.id}`}
+            <button 
+              onClick={handleViewChallenge}
               className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
             >
               <span>View Challenge</span>
               <ArrowRight size={16} />
-            </Link>
+            </button>
           ) : (
             <>
               <button
@@ -137,12 +145,12 @@ const StyleChallengeCard: React.FC<StyleChallengeCardProps> = ({ challenge, onJo
               >
                 <span>Join Challenge</span>
               </button>
-              <Link 
-                to={`/community/challenges/${challenge.id}`}
+              <button 
+                onClick={handleViewChallenge}
                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Details
-              </Link>
+              </button>
             </>
           )}
         </div>
