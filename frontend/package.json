@@ -26,7 +26,12 @@
     "@babylonjs/loaders": "^6.33.1",
     "@babylonjs/materials": "^6.33.1",
     "@babylonjs/gui": "^6.33.1",
-    "cannon": "^0.6.2"
+    "cannon": "^0.6.2",
+    "@zappar/zappar": "^2.0.0",
+    "@zappar/zappar-react-three-fiber": "^2.0.1",
+    "face-api.js": "^0.22.2",
+    "react-webcam": "^7.2.0",
+    "jimp": "^0.22.10"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
