@@ -4,6 +4,7 @@ import { X, Camera, Upload, RefreshCw, Download, Share2, Zap, Check, Info } from
 import { useDropzone } from 'react-dropzone';
 import Webcam from 'react-webcam';
 import * as faceapi from 'face-api.js';
+import ARTryOn from './ARTryOn';
 
 interface PhotoTryOnModalProps {
   isOpen: boolean;
@@ -18,7 +19,7 @@ interface PhotoTryOnModalProps {
 }
 
 const PhotoTryOnModal: React.FC<PhotoTryOnModalProps> = ({ isOpen, onClose, wardrobeItem }) => {
-  const [activeTab, setActiveTab] = useState<'upload' | 'camera'>('upload');
+  const [activeTab, setActiveTab] = useState<'upload' | 'camera' | 'ar'>('upload');
   const [selfieImage, setSelfieImage] = useState<string | null>(null);
   const [processedImage, setProcessedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -107,6 +108,13 @@ const PhotoTryOnModal: React.FC<PhotoTryOnModalProps> = ({ isOpen, onClose, ward
         setError('Failed to capture image');
       }
     }
+  };
+
+  const handleARCapture = (imageDataUrl: string) => {
+    setSelfieImage(imageDataUrl);
+    setProcessedImage(imageDataUrl);
+    setFaceDetected(true);
+    setIsProcessing(false);
   };
 
   const detectFace = async (imageSrc: string) => {
@@ -372,7 +380,7 @@ const PhotoTryOnModal: React.FC<PhotoTryOnModalProps> = ({ isOpen, onClose, ward
                   </motion.div>
                 )}
                 
-                {!modelsLoaded && !error ? (
+                {!modelsLoaded && !error && activeTab !== 'ar' ? (
                   <div className="flex justify-center py-8">
                     <div className="text-center">
                       <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-600 mx-auto mb-4"></div>
@@ -382,34 +390,60 @@ const PhotoTryOnModal: React.FC<PhotoTryOnModalProps> = ({ isOpen, onClose, ward
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    {!selfieImage ? (
+                    {/* Tabs */}
+                    <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg w-fit mx-auto">
+                      <button
+                        onClick={() => {
+                          setActiveTab('upload');
+                          resetProcess();
+                        }}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                          activeTab === 'upload'
+                            ? 'bg-white text-purple-600 shadow-sm'
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        <Upload className="inline w-4 h-4 mr-2" />
+                        Upload Photo
+                      </button>
+                      <button
+                        onClick={() => {
+                          setActiveTab('camera');
+                          resetProcess();
+                        }}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                          activeTab === 'camera'
+                            ? 'bg-white text-purple-600 shadow-sm'
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        <Camera className="inline w-4 h-4 mr-2" />
+                        Take Selfie
+                      </button>
+                      <button
+                        onClick={() => {
+                          setActiveTab('ar');
+                          resetProcess();
+                        }}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                          activeTab === 'ar'
+                            ? 'bg-white text-purple-600 shadow-sm'
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        <Zap className="inline w-4 h-4 mr-2" />
+                        AR Try-On
+                      </button>
+                    </div>
+                    
+                    {/* AR Mode */}
+                    {activeTab === 'ar' ? (
+                      <ARTryOn 
+                        wardrobeItem={wardrobeItem}
+                        onCapture={handleARCapture}
+                      />
+                    ) : !selfieImage ? (
                       <>
-                        {/* Tabs */}
-                        <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg w-fit mx-auto">
-                          <button
-                            onClick={() => setActiveTab('upload')}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                              activeTab === 'upload'
-                                ? 'bg-white text-purple-600 shadow-sm'
-                                : 'text-gray-600 hover:text-gray-900'
-                            }`}
-                          >
-                            <Upload className="inline w-4 h-4 mr-2" />
-                            Upload Photo
-                          </button>
-                          <button
-                            onClick={() => setActiveTab('camera')}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                              activeTab === 'camera'
-                                ? 'bg-white text-purple-600 shadow-sm'
-                                : 'text-gray-600 hover:text-gray-900'
-                            }`}
-                          >
-                            <Camera className="inline w-4 h-4 mr-2" />
-                            Take Selfie
-                          </button>
-                        </div>
-                        
                         {/* Tips Button */}
                         <div className="text-center">
                           <button
@@ -597,7 +631,7 @@ const PhotoTryOnModal: React.FC<PhotoTryOnModalProps> = ({ isOpen, onClose, ward
                     )}
                     
                     {/* Selected Item Preview */}
-                    {wardrobeItem && (
+                    {wardrobeItem && activeTab !== 'ar' && (
                       <div className="mt-6 pt-6 border-t border-gray-200">
                         <h4 className="text-sm font-medium text-gray-700 mb-2">Selected Item</h4>
                         <div className="flex items-center space-x-4">
@@ -621,19 +655,21 @@ const PhotoTryOnModal: React.FC<PhotoTryOnModalProps> = ({ isOpen, onClose, ward
                     )}
                     
                     {/* Technology Info */}
-                    <div className="mt-6 pt-6 border-t border-gray-200">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="text-sm font-medium text-gray-700">Powered by AI</h4>
-                        <div className="flex items-center text-purple-600">
-                          <Zap className="w-4 h-4 mr-1" />
-                          <span className="text-xs font-medium">StyleAI Technology</span>
+                    {activeTab !== 'ar' && (
+                      <div className="mt-6 pt-6 border-t border-gray-200">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="text-sm font-medium text-gray-700">Powered by AI</h4>
+                          <div className="flex items-center text-purple-600">
+                            <Zap className="w-4 h-4 mr-1" />
+                            <span className="text-xs font-medium">StyleAI Technology</span>
+                          </div>
                         </div>
+                        <p className="text-xs text-gray-500">
+                          Our advanced AI uses face detection and image processing to create realistic virtual try-ons. 
+                          Results may vary based on lighting, angle, and image quality.
+                        </p>
                       </div>
-                      <p className="text-xs text-gray-500">
-                        Our advanced AI uses face detection and image processing to create realistic virtual try-ons. 
-                        Results may vary based on lighting, angle, and image quality.
-                      </p>
-                    </div>
+                    )}
                   </div>
                 )}
               </div>

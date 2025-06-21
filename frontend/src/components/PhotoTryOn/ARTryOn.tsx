@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Camera, RefreshCw, Download, Share2, Zap, Info, X } from 'lucide-react';
 import { ZapparCamera, ZapparCanvas, BrowserCompatibility } from '@zappar/zappar-react-three-fiber';
-import { FaceMesh } from '@zappar/zappar-react-three-fiber';
 import * as THREE from 'three';
 
 interface ARTryOnProps {
@@ -116,7 +115,7 @@ const ARTryOn: React.FC<ARTryOnProps> = ({ wardrobeItem, onCapture }) => {
           <ZapparCamera />
           
           {isTextureLoaded && wardrobeItem && (
-            <FaceMesh>
+            <group>
               {/* AR Content based on wardrobe item category */}
               {wardrobeItem.category === 'Accessories' && (
                 <>
@@ -147,7 +146,7 @@ const ARTryOn: React.FC<ARTryOnProps> = ({ wardrobeItem, onCapture }) => {
                   <meshBasicMaterial map={textureRef.current} transparent opacity={0.9} />
                 </mesh>
               )}
-            </FaceMesh>
+            </group>
           )}
           
           <ambientLight intensity={0.5} />
