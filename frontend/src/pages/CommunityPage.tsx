@@ -16,7 +16,8 @@ import {
   ChevronDown,
   Sparkles,
   Zap,
-  User
+  User,
+  Trophy
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useWardrobe } from '../contexts/WardrobeContext';
@@ -173,9 +174,9 @@ const CommunityPage: React.FC = () => {
   const handleSaveProfile = async () => {
     try {
       // In a real app, you would update the user profile via API
-      // await updateProfile(profileData);
+      await updateProfile(profileData);
       
-      // For now, just close the modal
+      // Close the modal
       setShowCompleteProfile(false);
     } catch (error) {
       console.error('Failed to update profile:', error);

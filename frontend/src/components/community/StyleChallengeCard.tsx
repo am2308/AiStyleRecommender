@@ -34,7 +34,8 @@ const StyleChallengeCard: React.FC<StyleChallengeCardProps> = ({ challenge, onJo
 
   const handleViewChallenge = (e: React.MouseEvent) => {
     e.preventDefault();
-    // Navigate to the challenge detail page
+    e.stopPropagation();
+    // Navigate to the challenge detail page with query parameters
     navigate(`/community?tab=challenges&challenge=${challenge.id}`);
   };
 
