@@ -28,6 +28,7 @@ const PhotoTryOnModal: React.FC<PhotoTryOnModalProps> = ({ isOpen, onClose, ward
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [faceDetected, setFaceDetected] = useState(false);
   const [showTips, setShowTips] = useState(false);
+  const [isModelLoading, setIsModelLoading] = useState(false);
   
   const webcamRef = useRef<Webcam>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -38,6 +39,14 @@ const PhotoTryOnModal: React.FC<PhotoTryOnModalProps> = ({ isOpen, onClose, ward
     const loadModels = async () => {
       try {
         setError(null);
+        setIsModelLoading(true);
+        
+        // Check if models are already loaded
+        if (faceapi.nets.tinyFaceDetector.isLoaded) {
+          setModelsLoaded(true);
+          setIsModelLoading(false);
+          return;
+        }
         
         // Load models from public directory
         await Promise.all([
@@ -50,14 +59,16 @@ const PhotoTryOnModal: React.FC<PhotoTryOnModalProps> = ({ isOpen, onClose, ward
         console.log('Face detection models loaded successfully');
       } catch (err) {
         console.error('Error loading face detection models:', err);
-        setError('Failed to load face detection models. Please try again later.');
+        setError('Failed to load face detection models. Please try the AR option instead.');
+      } finally {
+        setIsModelLoading(false);
       }
     };
 
-    if (isOpen) {
+    if (isOpen && (activeTab === 'upload' || activeTab === 'camera')) {
       loadModels();
     }
-  }, [isOpen]);
+  }, [isOpen, activeTab]);
 
   // Handle file drop/upload
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -119,7 +130,7 @@ const PhotoTryOnModal: React.FC<PhotoTryOnModalProps> = ({ isOpen, onClose, ward
 
   const detectFace = async (imageSrc: string) => {
     if (!modelsLoaded) {
-      setError('Face detection models are not loaded yet');
+      setError('Face detection models are not loaded yet. Please try again or use AR mode.');
       return;
     }
 
@@ -131,8 +142,9 @@ const PhotoTryOnModal: React.FC<PhotoTryOnModalProps> = ({ isOpen, onClose, ward
       const img = new Image();
       img.src = imageSrc;
       
-      await new Promise((resolve) => {
+      await new Promise((resolve, reject) => {
         img.onload = resolve;
+        img.onerror = reject;
       });
 
       // Detect faces in the image
@@ -154,7 +166,7 @@ const PhotoTryOnModal: React.FC<PhotoTryOnModalProps> = ({ isOpen, onClose, ward
       
     } catch (err) {
       console.error('Error during face detection:', err);
-      setError('Failed to process image. Please try again.');
+      setError('Failed to process image. Please try again or use AR mode.');
       setIsProcessing(false);
     }
   };
@@ -179,8 +191,9 @@ const PhotoTryOnModal: React.FC<PhotoTryOnModalProps> = ({ isOpen, onClose, ward
       const selfieImg = new Image();
       selfieImg.src = imageSrc;
       
-      await new Promise((resolve) => {
+      await new Promise((resolve, reject) => {
         selfieImg.onload = resolve;
+        selfieImg.onerror = reject;
       });
       
       // Set canvas dimensions to match the image
@@ -192,72 +205,89 @@ const PhotoTryOnModal: React.FC<PhotoTryOnModalProps> = ({ isOpen, onClose, ward
       
       // Load the wardrobe item image
       const itemImg = new Image();
+      itemImg.crossOrigin = "Anonymous"; // Try to avoid CORS issues
       itemImg.src = wardrobeItem.imageUrl;
       
-      await new Promise((resolve) => {
-        itemImg.onload = resolve;
-      });
-      
-      // Get face position and dimensions
-      const { _box: box, _landmarks: landmarks } = faceDetection;
-      
-      // Determine placement based on item category
-      if (wardrobeItem.category === 'Tops' || 
-          wardrobeItem.category === 'Outerwear') {
+      try {
+        await new Promise((resolve, reject) => {
+          itemImg.onload = resolve;
+          itemImg.onerror = (e) => {
+            console.error('Error loading item image:', e);
+            reject(new Error('Failed to load item image'));
+          };
+          
+          // Set a timeout in case the image load hangs
+          setTimeout(() => reject(new Error('Image load timeout')), 10000);
+        });
         
-        // Position below the face for tops
-        const topWidth = box.width * 3;
-        const topHeight = (topWidth / itemImg.width) * itemImg.height;
-        const topX = box.x - (topWidth - box.width) / 2;
-        const topY = box.y + box.height * 1.2;
+        // Get face position and dimensions
+        const box = faceDetection.detection.box;
         
-        // Draw the top
-        ctx.drawImage(itemImg, topX, topY, topWidth, topHeight);
-        
-      } else if (wardrobeItem.category === 'Accessories') {
-        // For accessories like hats, place on top of head
-        if (wardrobeItem.name.toLowerCase().includes('hat') || 
-            wardrobeItem.name.toLowerCase().includes('cap')) {
+        // Determine placement based on item category
+        if (wardrobeItem.category === 'Tops' || 
+            wardrobeItem.category === 'Outerwear') {
           
-          const hatWidth = box.width * 1.5;
-          const hatHeight = (hatWidth / itemImg.width) * itemImg.height;
-          const hatX = box.x - (hatWidth - box.width) / 2;
-          const hatY = box.y - hatHeight * 0.8;
+          // Position below the face for tops
+          const topWidth = box.width * 3;
+          const topHeight = (topWidth / itemImg.width) * itemImg.height;
+          const topX = box.x - (topWidth - box.width) / 2;
+          const topY = box.y + box.height * 1.2;
           
-          // Draw the hat
-          ctx.drawImage(itemImg, hatX, hatY, hatWidth, hatHeight);
+          // Draw the top
+          ctx.drawImage(itemImg, topX, topY, topWidth, topHeight);
           
-        } else if (wardrobeItem.name.toLowerCase().includes('glasses') || 
-                  wardrobeItem.name.toLowerCase().includes('sunglasses')) {
-          
-          // For glasses, place over eyes
-          const eyeWidth = box.width * 0.9;
-          const eyeHeight = (eyeWidth / itemImg.width) * itemImg.height;
-          const eyeX = box.x + box.width * 0.05;
-          const eyeY = box.y + box.height * 0.3;
-          
-          // Draw the glasses
-          ctx.drawImage(itemImg, eyeX, eyeY, eyeWidth, eyeHeight);
-          
-        } else {
-          // For other accessories like necklaces
-          const accWidth = box.width * 1.2;
-          const accHeight = (accWidth / itemImg.width) * itemImg.height;
-          const accX = box.x - (accWidth - box.width) / 2;
-          const accY = box.y + box.height * 1.1;
-          
-          // Draw the accessory
-          ctx.drawImage(itemImg, accX, accY, accWidth, accHeight);
+        } else if (wardrobeItem.category === 'Accessories') {
+          // For accessories like hats, place on top of head
+          if (wardrobeItem.name.toLowerCase().includes('hat') || 
+              wardrobeItem.name.toLowerCase().includes('cap')) {
+            
+            const hatWidth = box.width * 1.5;
+            const hatHeight = (hatWidth / itemImg.width) * itemImg.height;
+            const hatX = box.x - (hatWidth - box.width) / 2;
+            const hatY = box.y - hatHeight * 0.8;
+            
+            // Draw the hat
+            ctx.drawImage(itemImg, hatX, hatY, hatWidth, hatHeight);
+            
+          } else if (wardrobeItem.name.toLowerCase().includes('glasses') || 
+                    wardrobeItem.name.toLowerCase().includes('sunglasses')) {
+            
+            // For glasses, place over eyes
+            const eyeWidth = box.width * 0.9;
+            const eyeHeight = (eyeWidth / itemImg.width) * itemImg.height;
+            const eyeX = box.x + box.width * 0.05;
+            const eyeY = box.y + box.height * 0.3;
+            
+            // Draw the glasses
+            ctx.drawImage(itemImg, eyeX, eyeY, eyeWidth, eyeHeight);
+            
+          } else {
+            // For other accessories like necklaces
+            const accWidth = box.width * 1.2;
+            const accHeight = (accWidth / itemImg.width) * itemImg.height;
+            const accX = box.x - (accWidth - box.width) / 2;
+            const accY = box.y + box.height * 1.1;
+            
+            // Draw the accessory
+            ctx.drawImage(itemImg, accX, accY, accWidth, accHeight);
+          }
         }
+        
+        // Get the processed image
+        const processedImageUrl = canvas.toDataURL('image/jpeg');
+        setProcessedImage(processedImageUrl);
+      } catch (imgError) {
+        console.error('Error with item image:', imgError);
+        setError('Could not load the wardrobe item image. Please try a different item or use AR mode.');
+        
+        // Still show the original image
+        const originalImageUrl = canvas.toDataURL('image/jpeg');
+        setProcessedImage(originalImageUrl);
       }
-      
-      // Get the processed image
-      const processedImageUrl = canvas.toDataURL('image/jpeg');
-      setProcessedImage(processedImageUrl);
       
     } catch (err) {
       console.error('Error processing image:', err);
-      setError('Failed to apply virtual try-on. Please try again.');
+      setError('Failed to apply virtual try-on. Please try again or use AR mode.');
     } finally {
       setIsProcessing(false);
     }
@@ -380,7 +410,7 @@ const PhotoTryOnModal: React.FC<PhotoTryOnModalProps> = ({ isOpen, onClose, ward
                   </motion.div>
                 )}
                 
-                {!modelsLoaded && !error && activeTab !== 'ar' ? (
+                {isModelLoading && activeTab !== 'ar' ? (
                   <div className="flex justify-center py-8">
                     <div className="text-center">
                       <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-600 mx-auto mb-4"></div>
@@ -514,7 +544,8 @@ const PhotoTryOnModal: React.FC<PhotoTryOnModalProps> = ({ isOpen, onClose, ward
                                   height: 480
                                 }}
                                 onUserMedia={() => setIsCameraReady(true)}
-                                onUserMediaError={() => {
+                                onUserMediaError={(err) => {
+                                  console.error('Camera error:', err);
                                   setError('Failed to access camera. Please check permissions or try uploading a photo instead.');
                                 }}
                                 className="w-full h-full object-cover"
@@ -691,4 +722,5 @@ const PhotoTryOnModal: React.FC<PhotoTryOnModalProps> = ({ isOpen, onClose, ward
   );
 };
 
+export { PhotoTryOnModal };
 export default PhotoTryOnModal;

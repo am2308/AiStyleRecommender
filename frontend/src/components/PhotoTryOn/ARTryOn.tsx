@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Camera, RefreshCw, Download, Share2, Zap, Info, X } from 'lucide-react';
-import { ZapparCamera, ZapparCanvas, BrowserCompatibility } from '@zappar/zappar-react-three-fiber';
+import { ZapparCamera, ZapparCanvas } from '@zappar/zappar-react-three-fiber';
 import * as THREE from 'three';
 
 interface ARTryOnProps {
@@ -21,6 +21,7 @@ const ARTryOn: React.FC<ARTryOnProps> = ({ wardrobeItem, onCapture }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const textureRef = useRef<THREE.Texture | null>(null);
   const [isTextureLoaded, setIsTextureLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   // Load the wardrobe item texture
   useEffect(() => {
@@ -35,6 +36,7 @@ const ARTryOn: React.FC<ARTryOnProps> = ({ wardrobeItem, onCapture }) => {
         undefined,
         (error) => {
           console.error('Error loading texture:', error);
+          setError('Failed to load item image. Please try again.');
         }
       );
     }
@@ -52,11 +54,56 @@ const ARTryOn: React.FC<ARTryOnProps> = ({ wardrobeItem, onCapture }) => {
     // Small delay to ensure UI updates before capture
     setTimeout(() => {
       if (canvasRef.current) {
-        const dataUrl = canvasRef.current.toDataURL('image/jpeg');
-        onCapture(dataUrl);
+        try {
+          const dataUrl = canvasRef.current.toDataURL('image/jpeg');
+          onCapture(dataUrl);
+        } catch (err) {
+          console.error('Error capturing image:', err);
+          setError('Failed to capture image. Please try again.');
+        }
         setIsCapturing(false);
       }
     }, 300);
+  };
+
+  // Custom AR content component
+  const ARContent = () => {
+    if (!isTextureLoaded || !wardrobeItem) return null;
+    
+    return (
+      <group>
+        {/* Create a simple plane with the item texture */}
+        {wardrobeItem.category === 'Accessories' && (
+          <>
+            {/* For glasses or hats */}
+            {(wardrobeItem.name.toLowerCase().includes('glasses') || 
+              wardrobeItem.name.toLowerCase().includes('sunglasses')) && (
+              <mesh position={[0, 0.03, 0.08]}>
+                <planeGeometry args={[0.12, 0.05]} />
+                <meshBasicMaterial map={textureRef.current} transparent opacity={0.9} />
+              </mesh>
+            )}
+            
+            {(wardrobeItem.name.toLowerCase().includes('hat') || 
+              wardrobeItem.name.toLowerCase().includes('cap')) && (
+              <mesh position={[0, 0.08, -0.02]} rotation={[0.3, 0, 0]}>
+                <planeGeometry args={[0.15, 0.1]} />
+                <meshBasicMaterial map={textureRef.current} transparent opacity={0.9} />
+              </mesh>
+            )}
+          </>
+        )}
+        
+        {/* For tops and outerwear */}
+        {(wardrobeItem.category === 'Tops' || 
+          wardrobeItem.category === 'Outerwear') && (
+          <mesh position={[0, -0.15, 0.05]}>
+            <planeGeometry args={[0.2, 0.25]} />
+            <meshBasicMaterial map={textureRef.current} transparent opacity={0.9} />
+          </mesh>
+        )}
+      </group>
+    );
   };
 
   return (
@@ -110,48 +157,26 @@ const ARTryOn: React.FC<ARTryOnProps> = ({ wardrobeItem, onCapture }) => {
       
       {/* AR Canvas */}
       <div className="h-[60vh] bg-gray-100 rounded-lg overflow-hidden">
-        <BrowserCompatibility />
         <ZapparCanvas ref={canvasRef}>
           <ZapparCamera />
-          
-          {isTextureLoaded && wardrobeItem && (
-            <group>
-              {/* AR Content based on wardrobe item category */}
-              {wardrobeItem.category === 'Accessories' && (
-                <>
-                  {/* For glasses or hats */}
-                  {(wardrobeItem.name.toLowerCase().includes('glasses') || 
-                    wardrobeItem.name.toLowerCase().includes('sunglasses')) && (
-                    <mesh position={[0, 0.03, 0.08]}>
-                      <planeGeometry args={[0.12, 0.05]} />
-                      <meshBasicMaterial map={textureRef.current} transparent opacity={0.9} />
-                    </mesh>
-                  )}
-                  
-                  {(wardrobeItem.name.toLowerCase().includes('hat') || 
-                    wardrobeItem.name.toLowerCase().includes('cap')) && (
-                    <mesh position={[0, 0.08, -0.02]} rotation={[0.3, 0, 0]}>
-                      <planeGeometry args={[0.15, 0.1]} />
-                      <meshBasicMaterial map={textureRef.current} transparent opacity={0.9} />
-                    </mesh>
-                  )}
-                </>
-              )}
-              
-              {/* For tops and outerwear */}
-              {(wardrobeItem.category === 'Tops' || 
-                wardrobeItem.category === 'Outerwear') && (
-                <mesh position={[0, -0.15, 0.05]}>
-                  <planeGeometry args={[0.2, 0.25]} />
-                  <meshBasicMaterial map={textureRef.current} transparent opacity={0.9} />
-                </mesh>
-              )}
-            </group>
-          )}
-          
+          <ARContent />
           <ambientLight intensity={0.5} />
           <directionalLight position={[0, 5, 10]} intensity={1} />
         </ZapparCanvas>
+        
+        {error && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+            <div className="bg-white p-4 rounded-lg max-w-xs text-center">
+              <p className="text-red-600 mb-2">{error}</p>
+              <button
+                onClick={() => setError(null)}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       
       {/* Controls */}
