@@ -1,4 +1,6 @@
-import { api } from './api';
+import { api, apiWithCache } from './api';
+import { getCacheItem, setCacheItem, CACHE_KEYS, CACHE_EXPIRATION } from '../utils/cacheUtils';
+import { resizeImage } from '../utils/imageOptimizer';
 
 export interface WardrobeItem {
   id: string;
@@ -15,8 +17,21 @@ export const wardrobeService = {
   async getItems(): Promise<WardrobeItem[]> {
     try {
       console.log('Making API request to /wardrobe');
+      
+      // Check cache first
+      const cachedItems = getCacheItem<WardrobeItem[]>(CACHE_KEYS.WARDROBE_ITEMS);
+      if (cachedItems) {
+        console.log('Using cached wardrobe items');
+        return cachedItems;
+      }
+      
+      // If not in cache, make the API call
       const response = await api.get('/wardrobe');
       console.log('API response:', response.data);
+      
+      // Cache the response
+      setCacheItem(CACHE_KEYS.WARDROBE_ITEMS, response.data, CACHE_EXPIRATION.SHORT);
+      
       return response.data || [];
     } catch (error: any) {
       console.error('Error fetching wardrobe items:', error);
@@ -47,13 +62,21 @@ export const wardrobeService = {
         imageName: itemData.image.name
       });
       
+      // Resize the image before uploading
+      const resizedImage = await resizeImage(itemData.image, 1200, 1200, 0.85);
+      console.log('Image resized:', {
+        originalSize: itemData.image.size,
+        resizedSize: resizedImage.size,
+        compressionRatio: (resizedImage.size / itemData.image.size).toFixed(2)
+      });
+      
       const formData = new FormData();
       formData.append('name', itemData.name);
       formData.append('category', itemData.category);
       formData.append('color', itemData.color);
       
       // Ensure the file is properly appended with the correct field name
-      formData.append('image', itemData.image, itemData.image.name);
+      formData.append('image', resizedImage, resizedImage.name);
       
       // Log FormData contents for debugging
       console.log('FormData created with entries:');
@@ -65,6 +88,10 @@ export const wardrobeService = {
       const response = await api.post('/wardrobe', formData);
       
       console.log('Item added successfully:', response.data);
+      
+      // Invalidate the wardrobe items cache
+      setCacheItem(CACHE_KEYS.WARDROBE_ITEMS, null, 0);
+      
       return response.data;
     } catch (error: any) {
       console.error('Error in wardrobeService.addItem:', error);
@@ -92,6 +119,9 @@ export const wardrobeService = {
   async deleteItem(id: string): Promise<void> {
     try {
       await api.delete(`/wardrobe/${id}`);
+      
+      // Invalidate the wardrobe items cache
+      setCacheItem(CACHE_KEYS.WARDROBE_ITEMS, null, 0);
     } catch (error: any) {
       console.error('Error deleting wardrobe item:', error);
       
