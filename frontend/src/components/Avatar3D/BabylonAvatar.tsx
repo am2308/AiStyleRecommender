@@ -159,14 +159,46 @@ const BabylonAvatar: React.FC<BabylonAvatarProps> = ({
     if (useRealClothingTextures && item.imageUrl) {
       // Check if we already have this texture loaded
       if (!textureRefs.current[item.id]) {
-        // Create a new texture
-        const texture = new Texture(item.imageUrl, scene, false, false);
-        texture.hasAlpha = true;
-        texture.wrapU = Texture.WRAP_ADDRESSMODE;
-        texture.wrapV = Texture.WRAP_ADDRESSMODE;
-        
-        // Store the texture for reuse
-        textureRefs.current[item.id] = texture;
+        try {
+          // Create a new texture
+          const texture = new Texture(item.imageUrl, scene, false, false, undefined, 
+            (success) => {
+              if (success) {
+                console.log(`Texture loaded successfully for ${item.name}`);
+              } else {
+                console.warn(`Texture loaded but with issues for ${item.name}`);
+              }
+            },
+            (error) => {
+              console.error(`Error loading texture for ${item.name}:`, error);
+              
+              // Try loading a fallback texture
+              const fallbackUrl = getCategoryFallbackImage(item.category);
+              const fallbackTexture = new Texture(fallbackUrl, scene);
+              fallbackTexture.hasAlpha = true;
+              fallbackTexture.wrapU = Texture.WRAP_ADDRESSMODE;
+              fallbackTexture.wrapV = Texture.WRAP_ADDRESSMODE;
+              textureRefs.current[item.id] = fallbackTexture;
+            }
+          );
+          
+          texture.hasAlpha = true;
+          texture.wrapU = Texture.WRAP_ADDRESSMODE;
+          texture.wrapV = Texture.WRAP_ADDRESSMODE;
+          
+          // Store the texture for reuse
+          textureRefs.current[item.id] = texture;
+        } catch (error) {
+          console.error(`Failed to create texture for ${item.name}:`, error);
+          
+          // Use a fallback texture
+          const fallbackUrl = getCategoryFallbackImage(item.category);
+          const fallbackTexture = new Texture(fallbackUrl, scene);
+          fallbackTexture.hasAlpha = true;
+          fallbackTexture.wrapU = Texture.WRAP_ADDRESSMODE;
+          fallbackTexture.wrapV = Texture.WRAP_ADDRESSMODE;
+          textureRefs.current[item.id] = fallbackTexture;
+        }
       }
       
       // Create material with the texture
@@ -245,6 +277,20 @@ const BabylonAvatar: React.FC<BabylonAvatarProps> = ({
       
       return material;
     }
+  };
+
+  // Get fallback image based on category
+  const getCategoryFallbackImage = (category: string) => {
+    const fallbacks = {
+      'Tops': 'https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=600',
+      'Bottoms': 'https://images.pexels.com/photos/1598507/pexels-photo-1598507.jpeg?auto=compress&cs=tinysrgb&w=600',
+      'Dresses': 'https://images.pexels.com/photos/985635/pexels-photo-985635.jpeg?auto=compress&cs=tinysrgb&w=600',
+      'Outerwear': 'https://images.pexels.com/photos/1040945/pexels-photo-1040945.jpeg?auto=compress&cs=tinysrgb&w=600',
+      'Footwear': 'https://images.pexels.com/photos/2529148/pexels-photo-2529148.jpeg?auto=compress&cs=tinysrgb&w=600',
+      'Accessories': 'https://images.pexels.com/photos/1927259/pexels-photo-1927259.jpeg?auto=compress&cs=tinysrgb&w=600'
+    };
+    
+    return fallbacks[category as keyof typeof fallbacks] || fallbacks['Tops'];
   };
 
   // Create skin material with subsurface scattering effect

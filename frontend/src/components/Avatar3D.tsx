@@ -119,37 +119,47 @@ const Avatar3DModel: React.FC<{
   pose: string;
 }> = ({ skinColors, bodyMeasurements, outfitItems, pose }) => {
   const groupRef = useRef<THREE.Group>(null);
-  const textureRefs = useRef<{[key: string]: THREE.Texture | null}>({});
+  const textureCache = useRef<{[key: string]: THREE.Texture}>({});
   const [texturesLoaded, setTexturesLoaded] = useState<{[key: string]: boolean}>({});
+  const [textureErrors, setTextureErrors] = useState<{[key: string]: boolean}>({});
 
-  // Load textures from wardrobe item images
+  // Load textures for wardrobe items
   useEffect(() => {
     const textureLoader = new THREE.TextureLoader();
     
+    // Set crossOrigin to allow loading from different domains
+    textureLoader.crossOrigin = 'anonymous';
+    
     outfitItems.forEach(item => {
-      if (item.imageUrl && !textureRefs.current[item.id]) {
-        // Use a placeholder image directly to avoid CORS issues
-        const placeholderUrl = 'https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=400';
-        
+      if (item.imageUrl && !textureCache.current[item.id]) {
+        // Try to load the actual image first
         textureLoader.load(
-          placeholderUrl,
+          item.imageUrl,
           (texture) => {
             texture.wrapS = THREE.RepeatWrapping;
             texture.wrapT = THREE.RepeatWrapping;
-            textureRefs.current[item.id] = texture;
+            textureCache.current[item.id] = texture;
             setTexturesLoaded(prev => ({...prev, [item.id]: true}));
+            setTextureErrors(prev => ({...prev, [item.id]: false}));
           },
           undefined,
           (error) => {
-            console.error('Error loading texture:', error);
-            setTexturesLoaded(prev => ({...prev, [item.id]: false}));
+            console.error(`Error loading texture for ${item.name}:`, error);
+            setTextureErrors(prev => ({...prev, [item.id]: true}));
             
-            // Try loading a different fallback texture
+            // Try loading a fallback image based on category
+            const fallbackUrl = getCategoryFallbackImage(item.category);
             textureLoader.load(
-              'https://images.pexels.com/photos/1462637/pexels-photo-1462637.jpeg?auto=compress&cs=tinysrgb&w=400',
+              fallbackUrl,
               (fallbackTexture) => {
-                textureRefs.current[item.id] = fallbackTexture;
+                fallbackTexture.wrapS = THREE.RepeatWrapping;
+                fallbackTexture.wrapT = THREE.RepeatWrapping;
+                textureCache.current[item.id] = fallbackTexture;
                 setTexturesLoaded(prev => ({...prev, [item.id]: true}));
+              },
+              undefined,
+              (fallbackError) => {
+                console.error('Even fallback texture failed to load:', fallbackError);
               }
             );
           }
@@ -158,12 +168,26 @@ const Avatar3DModel: React.FC<{
     });
     
     return () => {
-      // Dispose textures on cleanup
-      Object.values(textureRefs.current).forEach(texture => {
-        if (texture) texture.dispose();
+      // Dispose textures on unmount to prevent memory leaks
+      Object.values(textureCache.current).forEach(texture => {
+        texture.dispose();
       });
     };
   }, [outfitItems]);
+
+  // Get fallback image based on category
+  const getCategoryFallbackImage = (category: string) => {
+    const fallbacks = {
+      'Tops': 'https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=600',
+      'Bottoms': 'https://images.pexels.com/photos/1598507/pexels-photo-1598507.jpeg?auto=compress&cs=tinysrgb&w=600',
+      'Dresses': 'https://images.pexels.com/photos/985635/pexels-photo-985635.jpeg?auto=compress&cs=tinysrgb&w=600',
+      'Outerwear': 'https://images.pexels.com/photos/1040945/pexels-photo-1040945.jpeg?auto=compress&cs=tinysrgb&w=600',
+      'Footwear': 'https://images.pexels.com/photos/2529148/pexels-photo-2529148.jpeg?auto=compress&cs=tinysrgb&w=600',
+      'Accessories': 'https://images.pexels.com/photos/1927259/pexels-photo-1927259.jpeg?auto=compress&cs=tinysrgb&w=600'
+    };
+    
+    return fallbacks[category as keyof typeof fallbacks] || fallbacks['Tops'];
+  };
 
   useFrame((state) => {
     if (groupRef.current) {
@@ -192,23 +216,23 @@ const Avatar3DModel: React.FC<{
   };
 
   const createClothingMaterial = (item: any) => {
-    // If texture is loaded for this item, use it
-    if (textureRefs.current[item.id] && texturesLoaded[item.id]) {
+    // If we have a loaded texture for this item, use it
+    if (textureCache.current[item.id] && texturesLoaded[item.id]) {
       const material = new THREE.MeshStandardMaterial({
-        map: textureRefs.current[item.id],
+        map: textureCache.current[item.id],
         roughness: 0.7,
         metalness: 0.0,
       });
       
-      // Adjust texture based on clothing type
+      // Adjust texture settings based on clothing type
       if (item.category === 'Tops' || item.category === 'Dresses') {
         // For tops and dresses, we want to show the front of the garment
-        textureRefs.current[item.id]!.repeat.set(1, 1);
-        textureRefs.current[item.id]!.offset.set(0, 0);
+        textureCache.current[item.id].repeat.set(1, 1);
+        textureCache.current[item.id].offset.set(0, 0);
       } else if (item.category === 'Bottoms') {
         // For bottoms, we might need different scaling
-        textureRefs.current[item.id]!.repeat.set(1, 1);
-        textureRefs.current[item.id]!.offset.set(0, 0);
+        textureCache.current[item.id].repeat.set(1, 1);
+        textureCache.current[item.id].offset.set(0, 0);
       }
       
       return material;

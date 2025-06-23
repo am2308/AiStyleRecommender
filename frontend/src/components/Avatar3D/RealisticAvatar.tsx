@@ -62,8 +62,12 @@ const RealisticAvatar: React.FC<RealisticAvatarProps> = ({
     const texturesToLoad = outfitItems.length;
     let loadedCount = 0;
     
+    // Set crossOrigin to allow loading from different domains
+    textureLoader.crossOrigin = 'anonymous';
+    
     outfitItems.forEach(item => {
       if (item.imageUrl) {
+        // Try to load the actual image
         textureLoader.load(
           item.imageUrl,
           () => {
@@ -75,10 +79,26 @@ const RealisticAvatar: React.FC<RealisticAvatarProps> = ({
           undefined,
           (error) => {
             console.error('Error loading texture:', error);
-            loadedCount++;
-            if (loadedCount === texturesToLoad) {
-              setTexturesLoaded(true);
-            }
+            
+            // Try loading a fallback image
+            const fallbackUrl = getCategoryFallbackImage(item.category);
+            textureLoader.load(
+              fallbackUrl,
+              () => {
+                loadedCount++;
+                if (loadedCount === texturesToLoad) {
+                  setTexturesLoaded(true);
+                }
+              },
+              undefined,
+              (fallbackError) => {
+                console.error('Even fallback texture failed to load:', fallbackError);
+                loadedCount++;
+                if (loadedCount === texturesToLoad) {
+                  setTexturesLoaded(true);
+                }
+              }
+            );
           }
         );
       } else {
@@ -89,6 +109,20 @@ const RealisticAvatar: React.FC<RealisticAvatarProps> = ({
       }
     });
   }, [outfitItems]);
+
+  // Get fallback image based on category
+  const getCategoryFallbackImage = (category: string) => {
+    const fallbacks = {
+      'Tops': 'https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=600',
+      'Bottoms': 'https://images.pexels.com/photos/1598507/pexels-photo-1598507.jpeg?auto=compress&cs=tinysrgb&w=600',
+      'Dresses': 'https://images.pexels.com/photos/985635/pexels-photo-985635.jpeg?auto=compress&cs=tinysrgb&w=600',
+      'Outerwear': 'https://images.pexels.com/photos/1040945/pexels-photo-1040945.jpeg?auto=compress&cs=tinysrgb&w=600',
+      'Footwear': 'https://images.pexels.com/photos/2529148/pexels-photo-2529148.jpeg?auto=compress&cs=tinysrgb&w=600',
+      'Accessories': 'https://images.pexels.com/photos/1927259/pexels-photo-1927259.jpeg?auto=compress&cs=tinysrgb&w=600'
+    };
+    
+    return fallbacks[category as keyof typeof fallbacks] || fallbacks['Tops'];
+  };
 
   const handlePoseChange = () => {
     const poses: ('standing' | 'walking' | 'casual' | 'formal')[] = ['standing', 'walking', 'casual', 'formal'];
