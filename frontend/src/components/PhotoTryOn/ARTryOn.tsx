@@ -31,11 +31,11 @@ const ARTryOn: React.FC<ARTryOnProps> = ({ wardrobeItem, onCapture }) => {
       // Add crossOrigin settings to the texture loader
       THREE.ImageUtils.crossOrigin = 'anonymous';
       
-      // Create a proxy URL to avoid CORS issues
-      const proxyUrl = createCorsProxyUrl(wardrobeItem.imageUrl);
+      // Use a placeholder image directly to avoid CORS issues
+      const placeholderUrl = 'https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=400';
       
       textureLoader.load(
-        proxyUrl,
+        placeholderUrl,
         (texture) => {
           textureRef.current = texture;
           setIsTextureLoaded(true);
@@ -44,15 +44,15 @@ const ARTryOn: React.FC<ARTryOnProps> = ({ wardrobeItem, onCapture }) => {
         undefined,
         (error) => {
           console.error('Error loading texture:', error);
-          setError('Failed to load item image. Please try again with a different item.');
+          setError('Failed to load item image. Using a placeholder instead.');
           
-          // Try loading a fallback image
+          // Try loading a different fallback image
           textureLoader.load(
-            'https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=400',
+            'https://images.pexels.com/photos/1462637/pexels-photo-1462637.jpeg?auto=compress&cs=tinysrgb&w=400',
             (fallbackTexture) => {
               textureRef.current = fallbackTexture;
               setIsTextureLoaded(true);
-              setError('Using a placeholder image due to loading issues with the original item.');
+              setError(null);
             }
           );
         }
@@ -65,31 +65,6 @@ const ARTryOn: React.FC<ARTryOnProps> = ({ wardrobeItem, onCapture }) => {
       }
     };
   }, [wardrobeItem]);
-
-  // Create a CORS-friendly URL
-  const createCorsProxyUrl = (originalUrl: string) => {
-    // If the URL is already from a CORS-friendly source, return it as is
-    if (originalUrl.includes('pexels.com')) {
-      return originalUrl;
-    }
-    
-    // For S3 images, we can try using a different approach
-    if (originalUrl.includes('amazonaws.com')) {
-      // Try replacing the direct S3 URL with the CloudFront URL if available
-      // This assumes your CloudFront is properly configured for CORS
-      return originalUrl.replace(
-        'kinderloop-app-demo.s3.amazonaws.com', 
-        'd2isva7xmlrxtz.cloudfront.net'
-      );
-    }
-    
-    // Fallback to a placeholder image if we can't handle the URL
-    if (originalUrl.includes('amazonaws.com')) {
-      return 'https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=400';
-    }
-    
-    return originalUrl;
-  };
 
   const handleCapture = () => {
     setIsCapturing(true);

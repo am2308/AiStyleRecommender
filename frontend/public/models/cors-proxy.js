@@ -1,5 +1,5 @@
 // Simple CORS proxy for handling image loading issues
-// This script can be included in your HTML to help with CORS issues
+// This script is included in your HTML to help with CORS issues
 
 // Function to create a CORS-friendly URL
 function createCorsProxyUrl(originalUrl) {
