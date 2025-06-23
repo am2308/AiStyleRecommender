@@ -6,8 +6,9 @@ const PRECACHE_ASSETS = [
   '/',
   '/index.html',
   '/vite.svg',
-  '/models/cors-proxy.js',
-  '/images/demo-poster.jpg'
+  '/manifest.json',
+  '/icons/icon-192x192.png',
+  '/icons/icon-512x512.png'
 ];
 
 // Install event - precache static assets

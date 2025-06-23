@@ -88,6 +88,23 @@ export const recommendationService = {
       const cachedRecommendations = getCacheItem<RecommendationResponse>(cacheKey);
       if (cachedRecommendations) {
         console.log('Using cached recommendations');
+        
+        // Refresh in background after a delay
+        setTimeout(async () => {
+          try {
+            const response = await api.get('/recommendations', {
+              params: { occasion }
+            });
+            
+            // Only update cache if data has changed
+            if (JSON.stringify(response.data) !== JSON.stringify(cachedRecommendations)) {
+              setCacheItem(cacheKey, response.data, CACHE_EXPIRATION.SHORT);
+            }
+          } catch (error) {
+            console.error('Background recommendations refresh failed:', error);
+          }
+        }, 3000);
+        
         return cachedRecommendations;
       }
       

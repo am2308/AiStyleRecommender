@@ -23,6 +23,7 @@ export function useImagePreloader(imageUrls: string[]) {
 
     imageUrls.forEach(src => {
       const img = new Image();
+      img.crossOrigin = "anonymous";
       
       img.onload = () => {
         loadedCounter++;
@@ -36,7 +37,12 @@ export function useImagePreloader(imageUrls: string[]) {
         checkAllLoaded();
       };
       
-      img.src = src;
+      // Fix CORS issues
+      if (typeof window !== 'undefined' && window.createCorsProxyUrl) {
+        img.src = window.createCorsProxyUrl(src);
+      } else {
+        img.src = src;
+      }
     });
 
     return () => {

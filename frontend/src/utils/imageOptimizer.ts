@@ -99,27 +99,6 @@ export const dataURLtoFile = (dataUrl: string, filename: string): File => {
   return new File([u8arr], filename, { type: mime });
 };
 
-// Lazy load images
-export const lazyLoadImage = (
-  src: string,
-  placeholder: string = 'https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=100'
-): Promise<string> => {
-  return new Promise((resolve) => {
-    const img = new Image();
-    
-    img.onload = () => {
-      resolve(src);
-    };
-    
-    img.onerror = () => {
-      console.warn(`Failed to load image: ${src}, using placeholder`);
-      resolve(placeholder);
-    };
-    
-    img.src = src;
-  });
-};
-
 // Get appropriate image size based on device
 export const getResponsiveImageUrl = (url: string, width: number = 600): string => {
   // For Pexels images, we can use their sizing parameters
@@ -127,6 +106,33 @@ export const getResponsiveImageUrl = (url: string, width: number = 600): string 
     return url.replace(/w=\d+/, `w=${width}`);
   }
   
+  // For S3/CloudFront images, use our CORS proxy helper
+  if (url.includes('amazonaws.com') && typeof window !== 'undefined' && window.createCorsProxyUrl) {
+    return window.createCorsProxyUrl(url);
+  }
+  
   // For other URLs, just return the original
   return url;
+};
+
+// Fix CORS issues with images
+export const fixImageCors = (url: string): string => {
+  if (typeof window !== 'undefined' && window.createCorsProxyUrl) {
+    return window.createCorsProxyUrl(url);
+  }
+  return url;
+};
+
+// Get a fallback image based on category
+export const getFallbackImageForCategory = (category: string): string => {
+  const fallbacks: Record<string, string> = {
+    'Tops': 'https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'Bottoms': 'https://images.pexels.com/photos/1598507/pexels-photo-1598507.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'Dresses': 'https://images.pexels.com/photos/985635/pexels-photo-985635.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'Outerwear': 'https://images.pexels.com/photos/1040945/pexels-photo-1040945.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'Footwear': 'https://images.pexels.com/photos/2529148/pexels-photo-2529148.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'Accessories': 'https://images.pexels.com/photos/1927259/pexels-photo-1927259.jpeg?auto=compress&cs=tinysrgb&w=400'
+  };
+  
+  return fallbacks[category] || fallbacks['Tops'];
 };

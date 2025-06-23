@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { getResponsiveImageUrl } from '../utils/imageOptimizer';
+import React, { useState, useEffect, useRef } from 'react';
+import { getResponsiveImageUrl, fixImageCors, getFallbackImageForCategory } from '../utils/imageOptimizer';
+import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 
 interface LazyImageProps {
   src: string;
@@ -8,7 +9,9 @@ interface LazyImageProps {
   width?: number;
   height?: number;
   placeholderSrc?: string;
+  category?: string;
   onError?: () => void;
+  onLoad?: () => void;
 }
 
 const LazyImage: React.FC<LazyImageProps> = ({
@@ -17,48 +20,52 @@ const LazyImage: React.FC<LazyImageProps> = ({
   className = '',
   width,
   height,
-  placeholderSrc = 'https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=100',
-  onError
+  placeholderSrc,
+  category = 'Tops',
+  onError,
+  onLoad
 }) => {
-  const [imageSrc, setImageSrc] = useState<string>(placeholderSrc);
+  const [imageSrc, setImageSrc] = useState<string>('');
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [hasError, setHasError] = useState<boolean>(false);
+  const [elementRef, isInView] = useIntersectionObserver<HTMLDivElement>({
+    rootMargin: '200px',
+    triggerOnce: true
+  });
+  const imageRef = useRef<HTMLImageElement>(null);
+
+  // Get default placeholder based on category if not provided
+  const defaultPlaceholder = placeholderSrc || getFallbackImageForCategory(category);
 
   useEffect(() => {
     // Reset states when src changes
     setIsLoaded(false);
     setHasError(false);
-    setImageSrc(placeholderSrc);
     
-    if (!src) return;
-    
-    // Get responsive image URL
-    const responsiveSrc = getResponsiveImageUrl(src, width);
-    
-    // Create a new image element to preload the image
-    const img = new Image();
-    img.src = responsiveSrc;
-    
-    img.onload = () => {
+    // Only load the image if it's in view
+    if (isInView && src) {
+      // Fix CORS issues and get responsive image URL
+      const fixedSrc = fixImageCors(src);
+      const responsiveSrc = getResponsiveImageUrl(fixedSrc, width);
+      
       setImageSrc(responsiveSrc);
-      setIsLoaded(true);
-    };
-    
-    img.onerror = () => {
-      setHasError(true);
-      setImageSrc(placeholderSrc);
-      if (onError) onError();
-    };
-    
-    return () => {
-      // Clean up
-      img.onload = null;
-      img.onerror = null;
-    };
-  }, [src, placeholderSrc, width, onError]);
+    }
+  }, [src, isInView, width]);
+
+  const handleImageLoad = () => {
+    setIsLoaded(true);
+    if (onLoad) onLoad();
+  };
+
+  const handleImageError = () => {
+    setHasError(true);
+    setImageSrc(defaultPlaceholder);
+    if (onError) onError();
+  };
 
   return (
     <div 
+      ref={elementRef}
       className={`relative overflow-hidden ${className}`}
       style={{ width: width ? `${width}px` : '100%', height: height ? `${height}px` : 'auto' }}
     >
@@ -67,17 +74,22 @@ const LazyImage: React.FC<LazyImageProps> = ({
         <div className="absolute inset-0 bg-gray-200 animate-pulse" />
       )}
       
-      {/* Main image */}
-      <img
-        src={imageSrc}
-        alt={alt}
-        className={`w-full h-full object-cover transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
-        loading="lazy"
-        width={width}
-        height={height}
-      />
+      {/* Main image - only render if in view */}
+      {isInView && (
+        <img
+          ref={imageRef}
+          src={imageSrc || defaultPlaceholder}
+          alt={alt}
+          className={`w-full h-full object-cover transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+          loading="lazy"
+          width={width}
+          height={height}
+          onLoad={handleImageLoad}
+          onError={handleImageError}
+        />
+      )}
     </div>
   );
 };
 
-export default LazyImage;
+export default React.memo(LazyImage);

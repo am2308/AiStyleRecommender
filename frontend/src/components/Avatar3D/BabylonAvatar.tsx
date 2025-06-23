@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Engine, Scene, ArcRotateCamera, HemisphericLight, DirectionalLight, Vector3, MeshBuilder, StandardMaterial, Color3, Texture, PBRMaterial, CubeTexture, EnvironmentHelper, SceneLoader, AbstractMesh, Mesh, Animation, AnimationGroup, TransformNode } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
 import { AdvancedDynamicTexture, StackPanel, TextBlock, Control } from '@babylonjs/gui';
+import { fixImageCors, getFallbackImageForCategory } from '../../utils/imageOptimizer';
 
 interface BabylonAvatarProps {
   userProfile: {
@@ -160,8 +161,11 @@ const BabylonAvatar: React.FC<BabylonAvatarProps> = ({
       // Check if we already have this texture loaded
       if (!textureRefs.current[item.id]) {
         try {
+          // Fix CORS issues with the image URL
+          const fixedUrl = fixImageCors(item.imageUrl);
+          
           // Create a new texture
-          const texture = new Texture(item.imageUrl, scene, false, false, undefined, 
+          const texture = new Texture(fixedUrl, scene, false, false, undefined, 
             (success) => {
               if (success) {
                 console.log(`Texture loaded successfully for ${item.name}`);
@@ -173,7 +177,7 @@ const BabylonAvatar: React.FC<BabylonAvatarProps> = ({
               console.error(`Error loading texture for ${item.name}:`, error);
               
               // Try loading a fallback texture
-              const fallbackUrl = getCategoryFallbackImage(item.category);
+              const fallbackUrl = getFallbackImageForCategory(item.category);
               const fallbackTexture = new Texture(fallbackUrl, scene);
               fallbackTexture.hasAlpha = true;
               fallbackTexture.wrapU = Texture.WRAP_ADDRESSMODE;
@@ -192,7 +196,7 @@ const BabylonAvatar: React.FC<BabylonAvatarProps> = ({
           console.error(`Failed to create texture for ${item.name}:`, error);
           
           // Use a fallback texture
-          const fallbackUrl = getCategoryFallbackImage(item.category);
+          const fallbackUrl = getFallbackImageForCategory(item.category);
           const fallbackTexture = new Texture(fallbackUrl, scene);
           fallbackTexture.hasAlpha = true;
           fallbackTexture.wrapU = Texture.WRAP_ADDRESSMODE;
@@ -281,16 +285,7 @@ const BabylonAvatar: React.FC<BabylonAvatarProps> = ({
 
   // Get fallback image based on category
   const getCategoryFallbackImage = (category: string) => {
-    const fallbacks = {
-      'Tops': 'https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=600',
-      'Bottoms': 'https://images.pexels.com/photos/1598507/pexels-photo-1598507.jpeg?auto=compress&cs=tinysrgb&w=600',
-      'Dresses': 'https://images.pexels.com/photos/985635/pexels-photo-985635.jpeg?auto=compress&cs=tinysrgb&w=600',
-      'Outerwear': 'https://images.pexels.com/photos/1040945/pexels-photo-1040945.jpeg?auto=compress&cs=tinysrgb&w=600',
-      'Footwear': 'https://images.pexels.com/photos/2529148/pexels-photo-2529148.jpeg?auto=compress&cs=tinysrgb&w=600',
-      'Accessories': 'https://images.pexels.com/photos/1927259/pexels-photo-1927259.jpeg?auto=compress&cs=tinysrgb&w=600'
-    };
-    
-    return fallbacks[category as keyof typeof fallbacks] || fallbacks['Tops'];
+    return getFallbackImageForCategory(category);
   };
 
   // Create skin material with subsurface scattering effect
@@ -735,8 +730,14 @@ const BabylonAvatar: React.FC<BabylonAvatarProps> = ({
     setIsLoading(true);
     if (onLoadingChange) onLoadingChange(true);
     
-    // Create engine
-    const engine = new Engine(canvasRef.current, true, { preserveDrawingBuffer: true, stencil: true });
+    // Create engine with optimized settings
+    const engine = new Engine(canvasRef.current, true, { 
+      preserveDrawingBuffer: true, 
+      stencil: true,
+      antialias: true,
+      adaptToDeviceRatio: true,
+      powerPreference: "high-performance"
+    });
     engineRef.current = engine;
     
     // Create scene
@@ -774,7 +775,7 @@ const BabylonAvatar: React.FC<BabylonAvatarProps> = ({
         if (onLoadingChange) onLoadingChange(false);
       });
       
-      // Start rendering loop
+      // Start rendering loop with optimizations
       engine.runRenderLoop(() => {
         scene.render();
       });

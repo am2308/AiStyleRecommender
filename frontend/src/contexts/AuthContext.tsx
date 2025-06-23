@@ -47,6 +47,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('Using cached user profile');
         setUser(cachedUser);
         setIsLoading(false);
+        
+        // Refresh in background after a delay
+        setTimeout(async () => {
+          try {
+            const freshUserData = await authService.getProfile();
+            if (JSON.stringify(freshUserData) !== JSON.stringify(cachedUser)) {
+              setUser(freshUserData);
+              setCacheItem(CACHE_KEYS.USER_PROFILE, freshUserData, CACHE_EXPIRATION.LONG);
+            }
+          } catch (error) {
+            console.error('Background profile refresh failed:', error);
+          }
+        }, 2000);
+        
         return;
       }
       

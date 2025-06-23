@@ -39,6 +39,20 @@ export const WardrobeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         console.log('Using cached wardrobe items');
         setItems(cachedItems);
         setIsLoading(false);
+        
+        // Refresh in background after a delay
+        setTimeout(async () => {
+          try {
+            const freshItems = await wardrobeService.getItems();
+            if (JSON.stringify(freshItems) !== JSON.stringify(cachedItems)) {
+              setItems(freshItems);
+              setCacheItem(CACHE_KEYS.WARDROBE_ITEMS, freshItems, CACHE_EXPIRATION.SHORT);
+            }
+          } catch (error) {
+            console.error('Background refresh failed:', error);
+          }
+        }, 2000);
+        
         return;
       }
       
@@ -68,11 +82,17 @@ export const WardrobeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }) => {
     try {
       const newItem = await wardrobeService.addItem(itemData);
+      
+      // Update local state optimistically
       setItems((prevItems) => [...prevItems, newItem]);
+      
       toast.success('Item added to wardrobe!');
       
       // Invalidate cache
       setCacheItem(CACHE_KEYS.WARDROBE_ITEMS, null, 0);
+      
+      // Also invalidate recommendations cache since they depend on wardrobe items
+      setCacheItem(CACHE_KEYS.RECOMMENDATIONS, null, 0);
     } catch (error: any) {
       toast.error(error.message || 'Failed to add item');
       throw error;
@@ -81,13 +101,22 @@ export const WardrobeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const removeItem = async (id: string) => {
     try {
-      await wardrobeService.deleteItem(id);
+      // Update local state optimistically
       setItems((prevItems) => prevItems.filter(item => item.id !== id));
+      
+      // Then perform the API call
+      await wardrobeService.deleteItem(id);
+      
       toast.success('Item removed from wardrobe');
       
       // Invalidate cache
       setCacheItem(CACHE_KEYS.WARDROBE_ITEMS, null, 0);
+      
+      // Also invalidate recommendations cache
+      setCacheItem(CACHE_KEYS.RECOMMENDATIONS, null, 0);
     } catch (error: any) {
+      // Revert the optimistic update if the API call fails
+      refreshItems();
       toast.error(error.message || 'Failed to remove item');
       throw error;
     }

@@ -3,7 +3,7 @@
  */
 
 // Cache keys
-const CACHE_KEYS = {
+export const CACHE_KEYS = {
   WARDROBE_ITEMS: 'styleai_wardrobe_items',
   RECOMMENDATIONS: 'styleai_recommendations',
   USER_PROFILE: 'styleai_user_profile',
@@ -14,7 +14,7 @@ const CACHE_KEYS = {
 };
 
 // Cache expiration times (in milliseconds)
-const CACHE_EXPIRATION = {
+export const CACHE_EXPIRATION = {
   SHORT: 5 * 60 * 1000, // 5 minutes
   MEDIUM: 30 * 60 * 1000, // 30 minutes
   LONG: 24 * 60 * 60 * 1000, // 24 hours
@@ -30,6 +30,11 @@ interface CacheItem<T> {
 // Set an item in the cache
 export const setCacheItem = <T>(key: string, data: T, expiration: number = CACHE_EXPIRATION.MEDIUM): void => {
   try {
+    if (data === null) {
+      localStorage.removeItem(key);
+      return;
+    }
+    
     const cacheItem: CacheItem<T> = {
       data,
       timestamp: Date.now(),
@@ -86,5 +91,33 @@ export const clearCache = (): void => {
   }
 };
 
-// Export cache keys
-export { CACHE_KEYS, CACHE_EXPIRATION };
+// Clear cache by pattern
+export const clearCacheByPattern = (pattern: string): void => {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.includes(pattern)) {
+        localStorage.removeItem(key);
+      }
+    }
+  } catch (error) {
+    console.error('Error clearing cache by pattern:', error);
+  }
+};
+
+// Get cache size in bytes
+export const getCacheSize = (): number => {
+  try {
+    let size = 0;
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key) {
+        size += (localStorage.getItem(key) || '').length;
+      }
+    }
+    return size;
+  } catch (error) {
+    console.error('Error getting cache size:', error);
+    return 0;
+  }
+};

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useImagePreloader } from '../hooks/useImagePreloader';
 
 const fashionImages = [
   'https://images.pexels.com/photos/1926769/pexels-photo-1926769.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080&fit=crop',
@@ -12,61 +13,59 @@ const fashionImages = [
   'https://images.pexels.com/photos/1381556/pexels-photo-1381556.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080&fit=crop'
 ];
 
-// Preload images
-const preloadImages = (urls: string[]) => {
-  urls.forEach(url => {
-    const img = new Image();
-    img.src = url;
-  });
-};
+// Smaller versions for mobile devices
+const mobileImages = fashionImages.map(url => url.replace('w=1920&h=1080', 'w=800&h=1200'));
 
 const FashionBackground: React.FC = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [nextImageIndex, setNextImageIndex] = useState(1);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [imagesLoaded, setImagesLoaded] = useState<boolean[]>(new Array(fashionImages.length).fill(false));
   const [isVisible, setIsVisible] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
   const intervalRef = useRef<number | null>(null);
   const isInitialRender = useRef(true);
+  
+  // Preload images
+  const imagesToUse = isMobile ? mobileImages : fashionImages;
+  const { imagesPreloaded } = useImagePreloader(imagesToUse);
 
-  // Preload all images on mount
+  // Check for mobile devices and reduced motion preference
   useEffect(() => {
-    if (isInitialRender.current) {
-      preloadImages(fashionImages);
-      isInitialRender.current = false;
-    }
-    
-    // Track image loading
-    fashionImages.forEach((src, index) => {
-      const img = new Image();
-      img.onload = () => {
-        setImagesLoaded(prev => {
-          const newLoaded = [...prev];
-          newLoaded[index] = true;
-          return newLoaded;
-        });
-      };
-      img.src = src;
-    });
-    
     // Check if user has reduced motion preference
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (prefersReducedMotion) {
       setIsVisible(false);
     }
     
-    // Start transition interval only if visible
-    if (isVisible) {
+    // Check if device is mobile
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
+
+  // Set up image transition interval
+  useEffect(() => {
+    if (isInitialRender.current && imagesPreloaded) {
+      isInitialRender.current = false;
+    }
+    
+    // Start transition interval only if visible and images are preloaded
+    if (isVisible && imagesPreloaded) {
       intervalRef.current = window.setInterval(() => {
-        if (imagesLoaded[nextImageIndex]) {
-          setIsTransitioning(true);
-          
-          setTimeout(() => {
-            setCurrentImageIndex(nextImageIndex);
-            setNextImageIndex((nextImageIndex + 1) % fashionImages.length);
-            setIsTransitioning(false);
-          }, 1000); // Half of transition duration
-        }
+        setIsTransitioning(true);
+        
+        setTimeout(() => {
+          setCurrentImageIndex(nextImageIndex);
+          setNextImageIndex((nextImageIndex + 1) % imagesToUse.length);
+          setIsTransitioning(false);
+        }, 1000); // Half of transition duration
       }, 8000); // Change image every 8 seconds (reduced from 5 seconds)
     }
     
@@ -75,7 +74,7 @@ const FashionBackground: React.FC = () => {
         clearInterval(intervalRef.current);
       }
     };
-  }, [nextImageIndex, imagesLoaded, isVisible]);
+  }, [nextImageIndex, imagesPreloaded, isVisible, imagesToUse]);
 
   // Don't render if not visible (reduced motion preference)
   if (!isVisible) {
@@ -88,7 +87,7 @@ const FashionBackground: React.FC = () => {
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-2000 ease-in-out will-change-transform"
         style={{
-          backgroundImage: `url(${fashionImages[currentImageIndex]})`,
+          backgroundImage: `url(${imagesToUse[currentImageIndex]})`,
           opacity: isTransitioning ? 0 : 1,
         }}
       />
@@ -97,7 +96,7 @@ const FashionBackground: React.FC = () => {
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-2000 ease-in-out will-change-transform"
         style={{
-          backgroundImage: `url(${fashionImages[nextImageIndex]})`,
+          backgroundImage: `url(${imagesToUse[nextImageIndex]})`,
           opacity: isTransitioning ? 1 : 0,
         }}
       />

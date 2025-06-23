@@ -19,7 +19,9 @@ api.interceptors.request.use((config) => {
   const token = localStorage.getItem('authToken');
   
   // Log request details for debugging
-  console.log(`Making ${config.method?.toUpperCase()} request to: ${config.url}`);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`Making ${config.method?.toUpperCase()} request to: ${config.url}`);
+  }
   
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -29,7 +31,9 @@ api.interceptors.request.use((config) => {
   if (config.data instanceof FormData) {
     // Delete the Content-Type header to let the browser set it with the boundary
     delete config.headers['Content-Type'];
-    console.log('Request contains FormData, removing Content-Type header to allow browser to set it');
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Request contains FormData, removing Content-Type header to allow browser to set it');
+    }
   }
   
   return config;
@@ -38,7 +42,9 @@ api.interceptors.request.use((config) => {
 // Add response interceptor for error handling and caching
 api.interceptors.response.use(
   (response) => {
-    console.log(`Response from ${response.config.url}: Status ${response.status}`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`Response from ${response.config.url}: Status ${response.status}`);
+    }
     
     // Cache GET responses if they're successful
     if (response.config.method?.toLowerCase() === 'get' && response.status === 200) {
@@ -59,17 +65,19 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    console.error('API Error:', error.message);
-    
-    if (error.response) {
-      console.error('Response status:', error.response.status);
-      console.error('Response data:', error.response.data);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('API Error:', error.message);
       
-      // Handle authentication errors
-      if (error.response.status === 401) {
-        localStorage.removeItem('authToken');
-        window.location.href = '/login';
+      if (error.response) {
+        console.error('Response status:', error.response.status);
+        console.error('Response data:', error.response.data);
       }
+    }
+    
+    // Handle authentication errors
+    if (error.response?.status === 401) {
+      localStorage.removeItem('authToken');
+      window.location.href = '/login';
     }
     
     return Promise.reject(error);
@@ -80,12 +88,17 @@ api.interceptors.response.use(
 export const apiWithCache = {
   // GET request with cache
   async get<T>(url: string, config?: any): Promise<T> {
+    // Generate a cache key based on URL and query params
+    const queryString = config?.params ? new URLSearchParams(config.params).toString() : '';
+    const cacheKey = `${url}_${queryString}`;
+    
     // Check cache first
-    const cacheKey = `${CACHE_KEYS.WARDROBE_ITEMS}_${url}`;
     const cachedData = getCacheItem<T>(cacheKey);
     
     if (cachedData) {
-      console.log(`Using cached data for ${url}`);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`Using cached data for ${url}`);
+      }
       return cachedData;
     }
     

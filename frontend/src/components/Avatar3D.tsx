@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { User, Palette, Sparkles } from 'lucide-react';
+import React, { useRef, useEffect, useState, Suspense } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Environment, ContactShadows, Html } from '@react-three/drei';
 import * as THREE from 'three';
+import { fixImageCors, getFallbackImageForCategory } from '../utils/imageOptimizer';
 
 interface Avatar3DProps {
   userProfile: {
@@ -134,9 +133,12 @@ const Avatar3DModel: React.FC<{
     
     outfitItems.forEach(item => {
       if (item.imageUrl && !textureCache.current[item.id]) {
+        // Fix CORS issues with the image URL
+        const fixedUrl = fixImageCors(item.imageUrl);
+        
         // Try to load the actual image first
         textureLoader.load(
-          item.imageUrl,
+          fixedUrl,
           (texture) => {
             texture.wrapS = THREE.RepeatWrapping;
             texture.wrapT = THREE.RepeatWrapping;
@@ -150,7 +152,7 @@ const Avatar3DModel: React.FC<{
             setTextureErrors(prev => ({...prev, [item.id]: true}));
             
             // Try loading a fallback image based on category
-            const fallbackUrl = getCategoryFallbackImage(item.category);
+            const fallbackUrl = getFallbackImageForCategory(item.category);
             textureLoader.load(
               fallbackUrl,
               (fallbackTexture) => {
@@ -176,20 +178,6 @@ const Avatar3DModel: React.FC<{
       });
     };
   }, [outfitItems]);
-
-  // Get fallback image based on category
-  const getCategoryFallbackImage = (category: string) => {
-    const fallbacks = {
-      'Tops': 'https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=600',
-      'Bottoms': 'https://images.pexels.com/photos/1598507/pexels-photo-1598507.jpeg?auto=compress&cs=tinysrgb&w=600',
-      'Dresses': 'https://images.pexels.com/photos/985635/pexels-photo-985635.jpeg?auto=compress&cs=tinysrgb&w=600',
-      'Outerwear': 'https://images.pexels.com/photos/1040945/pexels-photo-1040945.jpeg?auto=compress&cs=tinysrgb&w=600',
-      'Footwear': 'https://images.pexels.com/photos/2529148/pexels-photo-2529148.jpeg?auto=compress&cs=tinysrgb&w=600',
-      'Accessories': 'https://images.pexels.com/photos/1927259/pexels-photo-1927259.jpeg?auto=compress&cs=tinysrgb&w=600'
-    };
-    
-    return fallbacks[category as keyof typeof fallbacks] || fallbacks['Tops'];
-  };
 
   useFrame((state) => {
     if (groupRef.current) {
@@ -252,7 +240,7 @@ const Avatar3DModel: React.FC<{
       'Purple': '#8b5cf6',
       'Pink': '#ec4899',
       'Yellow': '#eab308',
-      'Orange': '#ea580c',
+      'Orange': '#f97316',
       'Multi': '#6b7280'
     };
 
@@ -474,7 +462,8 @@ const Avatar3D: React.FC<Avatar3DProps> = ({
       <Canvas
         shadows
         camera={{ position: [0, 0, 3], fov: 50 }}
-        gl={{ antialias: true, alpha: true }}
+        gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+        performance={{ min: 0.5 }}
       >
         <Suspense fallback={<LoadingAvatar />}>
           {/* Lighting setup */}
@@ -483,7 +472,7 @@ const Avatar3D: React.FC<Avatar3DProps> = ({
             position={[5, 5, 5]}
             intensity={1}
             castShadow
-            shadow-mapSize={[2048, 2048]}
+            shadow-mapSize={[1024, 1024]}
           />
           <pointLight position={[-5, 5, 5]} intensity={0.5} />
           <spotLight

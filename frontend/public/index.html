@@ -10,86 +10,97 @@
     <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
     
     <!-- Preload critical assets -->
-    <link rel="preload" href="/fonts/inter-var.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preconnect" href="https://images.pexels.com" />
+    <link rel="preconnect" href="https://d2isva7xmlrxtz.cloudfront.net" crossorigin />
+    
+    <!-- Preload critical fonts -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
     
     <title>StyleAI - Your Personal Wardrobe Assistant</title>
     
     <!-- Add CORS helper script -->
-    <script src="/models/cors-proxy.js"></script>
-    
-    <!-- Add face-api.js placeholder -->
     <script>
-      // Create a minimal face-api.js placeholder to prevent errors
-      window.faceapi = {
-        nets: {
-          tinyFaceDetector: {
-            loadFromUri: async () => console.log('Placeholder: TinyFaceDetector model loaded'),
-            isLoaded: true
-          },
-          faceLandmark68Net: {
-            loadFromUri: async () => console.log('Placeholder: FaceLandmark68 model loaded'),
-            isLoaded: true
-          },
-          faceRecognitionNet: {
-            loadFromUri: async () => console.log('Placeholder: FaceRecognition model loaded'),
-            isLoaded: true
-          }
-        },
-        detectAllFaces: () => ({
-          withFaceLandmarks: () => Promise.resolve([{
-            detection: {
-              box: {
-                x: 100,
-                y: 100,
-                width: 200,
-                height: 200
-              }
-            }
-          }])
-        })
-      };
-      
       // Helper function to fix CORS issues with image loading
       function fixImageCORS() {
-        // Override the Image constructor
-        const originalImage = window.Image;
+        // Create a global function to handle CORS URLs
+        window.createCorsProxyUrl = function(originalUrl) {
+          // If the URL is already from a CORS-friendly source, return it as is
+          if (originalUrl.includes('pexels.com')) {
+            return originalUrl;
+          }
+          
+          // For S3 images, we can try using CloudFront URL
+          if (originalUrl.includes('amazonaws.com')) {
+            // Replace S3 domain with CloudFront domain
+            return originalUrl.replace(
+              'kinderloop-app-demo.s3.amazonaws.com', 
+              'd2isva7xmlrxtz.cloudfront.net'
+            );
+          }
+          
+          // Fallback to a placeholder image if we can't handle the URL
+          if (originalUrl.includes('amazonaws.com')) {
+            // Determine category from URL path
+            let fallbackUrl = 'https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=400';
+            
+            if (originalUrl.includes('/Tops/')) {
+              fallbackUrl = 'https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=400';
+            } else if (originalUrl.includes('/Bottoms/')) {
+              fallbackUrl = 'https://images.pexels.com/photos/1598507/pexels-photo-1598507.jpeg?auto=compress&cs=tinysrgb&w=400';
+            } else if (originalUrl.includes('/Dresses/')) {
+              fallbackUrl = 'https://images.pexels.com/photos/985635/pexels-photo-985635.jpeg?auto=compress&cs=tinysrgb&w=400';
+            } else if (originalUrl.includes('/Outerwear/')) {
+              fallbackUrl = 'https://images.pexels.com/photos/1040945/pexels-photo-1040945.jpeg?auto=compress&cs=tinysrgb&w=400';
+            } else if (originalUrl.includes('/Footwear/')) {
+              fallbackUrl = 'https://images.pexels.com/photos/2529148/pexels-photo-2529148.jpeg?auto=compress&cs=tinysrgb&w=400';
+            } else if (originalUrl.includes('/Accessories/')) {
+              fallbackUrl = 'https://images.pexels.com/photos/1927259/pexels-photo-1927259.jpeg?auto=compress&cs=tinysrgb&w=400';
+            }
+            
+            return fallbackUrl;
+          }
+          
+          return originalUrl;
+        };
         
+        // Override the Image constructor to add crossOrigin by default
+        const originalImage = window.Image;
         window.Image = function(width, height) {
           const img = new originalImage(width, height);
           img.crossOrigin = "anonymous";
-          
-          // Override the src property
-          const originalSrcDescriptor = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
-          Object.defineProperty(img, 'src', {
-            get: function() {
-              return originalSrcDescriptor?.get?.call(this);
-            },
-            set: function(url) {
-              // Check if this is an S3 URL that might have CORS issues
-              if (url && typeof url === 'string' && url.includes('amazonaws.com')) {
-                // Try to use a CORS-friendly version or fallback
-                const fallbackUrl = 'https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=400';
-                console.log(`CORS helper: Replacing ${url} with fallback`);
-                originalSrcDescriptor?.set?.call(this, fallbackUrl);
-              } else {
-                originalSrcDescriptor?.set?.call(this, url);
-              }
-            }
-          });
-          
           return img;
         };
-        
-        // Copy properties from the original Image constructor
         window.Image.prototype = originalImage.prototype;
-        window.Image.length = originalImage.length;
+        
+        // Patch fetch for CORS issues
+        const originalFetch = window.fetch;
+        window.fetch = function(url, options) {
+          if (typeof url === 'string' && url.includes('amazonaws.com')) {
+            url = window.createCorsProxyUrl(url);
+          }
+          return originalFetch(url, options);
+        };
         
         console.log('CORS image helper installed');
       }
       
       // Run the CORS fix
       fixImageCORS();
+      
+      // Add performance monitoring
+      window.addEventListener('load', function() {
+        // Report performance metrics
+        setTimeout(function() {
+          if (window.performance) {
+            const timing = window.performance.timing;
+            const pageLoadTime = timing.loadEventEnd - timing.navigationStart;
+            console.log('Page load time:', pageLoadTime + 'ms');
+            
+            // Send to analytics in a real app
+          }
+        }, 0);
+      });
     </script>
   </head>
   <body>
