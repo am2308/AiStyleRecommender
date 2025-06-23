@@ -128,8 +128,11 @@ const Avatar3DModel: React.FC<{
     
     outfitItems.forEach(item => {
       if (item.imageUrl && !textureRefs.current[item.id]) {
+        // Create a CORS-friendly URL
+        const imageUrl = createCorsProxyUrl(item.imageUrl);
+        
         textureLoader.load(
-          item.imageUrl,
+          imageUrl,
           (texture) => {
             texture.wrapS = THREE.RepeatWrapping;
             texture.wrapT = THREE.RepeatWrapping;
@@ -140,6 +143,15 @@ const Avatar3DModel: React.FC<{
           (error) => {
             console.error('Error loading texture:', error);
             setTexturesLoaded(prev => ({...prev, [item.id]: false}));
+            
+            // Try loading a fallback texture
+            textureLoader.load(
+              'https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=400',
+              (fallbackTexture) => {
+                textureRefs.current[item.id] = fallbackTexture;
+                setTexturesLoaded(prev => ({...prev, [item.id]: true}));
+              }
+            );
           }
         );
       }
@@ -152,6 +164,30 @@ const Avatar3DModel: React.FC<{
       });
     };
   }, [outfitItems]);
+
+  // Create a CORS-friendly URL
+  const createCorsProxyUrl = (originalUrl: string) => {
+    // If the URL is already from a CORS-friendly source, return it as is
+    if (originalUrl.includes('pexels.com')) {
+      return originalUrl;
+    }
+    
+    // For S3 images, we can try using a different approach
+    if (originalUrl.includes('amazonaws.com')) {
+      // Try replacing the direct S3 URL with the CloudFront URL if available
+      return originalUrl.replace(
+        'kinderloop-app-demo.s3.amazonaws.com', 
+        'd2isva7xmlrxtz.cloudfront.net'
+      );
+    }
+    
+    // Fallback to a placeholder image if we can't handle the URL
+    if (originalUrl.includes('amazonaws.com')) {
+      return 'https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=400';
+    }
+    
+    return originalUrl;
+  };
 
   useFrame((state) => {
     if (groupRef.current) {

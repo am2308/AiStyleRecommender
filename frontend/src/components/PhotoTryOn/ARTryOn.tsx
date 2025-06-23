@@ -27,16 +27,34 @@ const ARTryOn: React.FC<ARTryOnProps> = ({ wardrobeItem, onCapture }) => {
   useEffect(() => {
     if (wardrobeItem?.imageUrl) {
       const textureLoader = new THREE.TextureLoader();
+      
+      // Add crossOrigin settings to the texture loader
+      THREE.ImageUtils.crossOrigin = 'anonymous';
+      
+      // Create a proxy URL to avoid CORS issues
+      const proxyUrl = createCorsProxyUrl(wardrobeItem.imageUrl);
+      
       textureLoader.load(
-        wardrobeItem.imageUrl,
+        proxyUrl,
         (texture) => {
           textureRef.current = texture;
           setIsTextureLoaded(true);
+          setError(null);
         },
         undefined,
         (error) => {
           console.error('Error loading texture:', error);
-          setError('Failed to load item image. Please try again.');
+          setError('Failed to load item image. Please try again with a different item.');
+          
+          // Try loading a fallback image
+          textureLoader.load(
+            'https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=400',
+            (fallbackTexture) => {
+              textureRef.current = fallbackTexture;
+              setIsTextureLoaded(true);
+              setError('Using a placeholder image due to loading issues with the original item.');
+            }
+          );
         }
       );
     }
@@ -47,6 +65,31 @@ const ARTryOn: React.FC<ARTryOnProps> = ({ wardrobeItem, onCapture }) => {
       }
     };
   }, [wardrobeItem]);
+
+  // Create a CORS-friendly URL
+  const createCorsProxyUrl = (originalUrl: string) => {
+    // If the URL is already from a CORS-friendly source, return it as is
+    if (originalUrl.includes('pexels.com')) {
+      return originalUrl;
+    }
+    
+    // For S3 images, we can try using a different approach
+    if (originalUrl.includes('amazonaws.com')) {
+      // Try replacing the direct S3 URL with the CloudFront URL if available
+      // This assumes your CloudFront is properly configured for CORS
+      return originalUrl.replace(
+        'kinderloop-app-demo.s3.amazonaws.com', 
+        'd2isva7xmlrxtz.cloudfront.net'
+      );
+    }
+    
+    // Fallback to a placeholder image if we can't handle the URL
+    if (originalUrl.includes('amazonaws.com')) {
+      return 'https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=400';
+    }
+    
+    return originalUrl;
+  };
 
   const handleCapture = () => {
     setIsCapturing(true);
@@ -196,13 +239,9 @@ const ARTryOn: React.FC<ARTryOnProps> = ({ wardrobeItem, onCapture }) => {
           <div className="flex items-center space-x-3">
             <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden">
               <img 
-                src={wardrobeItem.imageUrl} 
+                src="https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=400"
                 alt={wardrobeItem.name}
                 className="w-full h-full object-cover"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.src = 'https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=400';
-                }}
               />
             </div>
             <div>

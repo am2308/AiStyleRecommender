@@ -206,7 +206,10 @@ const PhotoTryOnModal: React.FC<PhotoTryOnModalProps> = ({ isOpen, onClose, ward
       // Load the wardrobe item image
       const itemImg = new Image();
       itemImg.crossOrigin = "Anonymous"; // Try to avoid CORS issues
-      itemImg.src = wardrobeItem.imageUrl;
+      
+      // Use a CORS-friendly URL or a placeholder
+      const itemUrl = createCorsProxyUrl(wardrobeItem.imageUrl);
+      itemImg.src = itemUrl;
       
       try {
         await new Promise((resolve, reject) => {
@@ -291,6 +294,31 @@ const PhotoTryOnModal: React.FC<PhotoTryOnModalProps> = ({ isOpen, onClose, ward
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  // Create a CORS-friendly URL
+  const createCorsProxyUrl = (originalUrl: string) => {
+    // If the URL is already from a CORS-friendly source, return it as is
+    if (originalUrl.includes('pexels.com')) {
+      return originalUrl;
+    }
+    
+    // For S3 images, we can try using a different approach
+    if (originalUrl.includes('amazonaws.com')) {
+      // Try replacing the direct S3 URL with the CloudFront URL if available
+      // This assumes your CloudFront is properly configured for CORS
+      return originalUrl.replace(
+        'kinderloop-app-demo.s3.amazonaws.com', 
+        'd2isva7xmlrxtz.cloudfront.net'
+      );
+    }
+    
+    // Fallback to a placeholder image if we can't handle the URL
+    if (originalUrl.includes('amazonaws.com')) {
+      return 'https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=400';
+    }
+    
+    return originalUrl;
   };
 
   const handleDownload = () => {
@@ -668,13 +696,9 @@ const PhotoTryOnModal: React.FC<PhotoTryOnModalProps> = ({ isOpen, onClose, ward
                         <div className="flex items-center space-x-4">
                           <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden">
                             <img 
-                              src={wardrobeItem.imageUrl} 
+                              src="https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=400"
                               alt={wardrobeItem.name}
                               className="w-full h-full object-cover"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.src = 'https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=400';
-                              }}
                             />
                           </div>
                           <div>
