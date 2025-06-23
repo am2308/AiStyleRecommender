@@ -1,4 +1,6 @@
-import React, { useRef, useEffect, useState, Suspense } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { User, Palette, Sparkles } from 'lucide-react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Environment, ContactShadows, Html } from '@react-three/drei';
 import * as THREE from 'three';
@@ -241,13 +243,13 @@ const Avatar3DModel: React.FC<{
     // Fallback to color-based material if texture isn't loaded
     const colorMap: { [key: string]: string } = {
       'Black': '#1a1a1a',
-      'White': '#f8f8f8',
-      'Blue': '#2563eb',
-      'Red': '#dc2626',
-      'Green': '#16a34a',
+      'White': '#ffffff',
+      'Blue': '#3b82f6',
+      'Red': '#ef4444',
+      'Green': '#10b981',
       'Gray': '#6b7280',
       'Brown': '#92400e',
-      'Purple': '#7c3aed',
+      'Purple': '#8b5cf6',
       'Pink': '#ec4899',
       'Yellow': '#eab308',
       'Orange': '#ea580c',
@@ -435,7 +437,7 @@ const Avatar3DModel: React.FC<{
       {/* Outerwear */}
       {outerwearItem && (
         <mesh 
-          position={[0, 1.2, 0]} 
+          position={[0, 1.2, 0.05]} 
           scale={[bodyMeasurements.shoulders * 1.1, 1.1, 1.2]}
           castShadow 
           receiveShadow
